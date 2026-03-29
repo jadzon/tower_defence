@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF
-from PyQt6.QtGui import QPen, QColor
+from PyQt6.QtGui import QPen, QColor, QBrush
+from PyQt6.QtWidgets import QGraphicsEllipseItem
 
 class GameView(QGraphicsView):
     def __init__(self, game_engine):
@@ -12,12 +13,38 @@ class GameView(QGraphicsView):
 
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        self._unit_items = []
+        self._radius = 12
     
     def setFullScreen(self,event):
         self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def draw_debug_path(self):
         pen = QPen(QColor("red"), 5)
-        path = self.engine.waypoints
-        for i in range(len(path) - 1):
-            self.scene.addLine(path[i][0], path[i][1], path[i+1][0], path[i+1][1], pen)
+        drawn = set()
+
+        for node in self.engine.nodes:
+            x1, y1 = node.x, node.y
+            for neighbor in node.neighbors:
+                key = tuple(sorted((id(node), id(neighbor))))
+                if key in drawn:
+                    continue
+                drawn.add(key)
+                self.scene.addLine(x1, y1, neighbor.x, neighbor.y, pen)
+                print(f"Drawing {neighbor}")
+    
+
+    def _ensure_unit_graphics(self):
+        r = self._radius
+        while len(self._unit_items) < len(self.engine.units):
+            item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
+            item.setBrush(QBrush(QColor("lime")))
+            self.scene.addItem(item)
+            self._unit_items.append(item)
+
+    def sync_units(self):
+        self._ensure_unit_graphics()
+        r = self._radius
+        for item, unit in zip(self._unit_items, self.engine.units):
+            item.setPos(unit.x, unit.y)

@@ -1,5 +1,6 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QVBoxLayout, QWidget,QPushButton
+from PyQt6.QtCore import QTimer
 from engine import Game
 from view import GameView
 
@@ -29,9 +30,20 @@ class MainWindow(QMainWindow):
 
         self.main_layout.addWidget(self.bottom_bar_widget)
 
+        # game settings
+        self._tick_ms = 16 
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._on_game_tick)
+        self._timer.start(self._tick_ms)
+
         self.game_view.draw_debug_path()
         self.setWindowTitle("game")
         self.showFullScreen()
+    
+    def _on_game_tick(self):
+        dt = self._tick_ms / 1000.0
+        self.engine.tick(dt)
+        self.game_view.sync_units()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
