@@ -27,7 +27,7 @@ class Game:
         self.spawned_in_wave = 0
         self.next_spawn_at = 0
         
-        self.units = []
+        self.units: list[Unit] = []
         self.dt = 1
     
     def tick(self,dt):
@@ -39,35 +39,31 @@ class Game:
         for u in self.units:
             u.update(dt)
     
-    def _add_unit(self, t_node, unit_type):
-        unit = Unit(t_node,"grunt",200)
+    def _add_unit(self, spawn_node, unit_type):
+        unit = create_unit(spawn_node,unit_type)
         self.units.append(unit)
     
     def _process_waves(self):
-        waves = self.waves  # list[WaveSpec]
+        waves = self.waves 
         if self.wave_index >= len(waves):
             return
 
         w = waves[self.wave_index]
 
-    # Wave not started yet
         if self.elapsed < w.delay_sec:
             return
 
-    # First spawn of this wave: schedule first spawn time
         if self.next_spawn_at is None:
             self.next_spawn_at = w.delay_sec
 
-    # Time to spawn?
         while (
             self.spawned_in_wave < w.count
             and self.elapsed >= self.next_spawn_at
         ):
             self._add_unit(self.first_node, w.unit_type)
             self.spawned_in_wave += 1
-            self.next_spawn_at += w.interval_sec  # or: self.elapsed + w.interval_sec
+            self.next_spawn_at += w.interval_sec 
 
-        # Wave finished?
         if self.spawned_in_wave >= w.count:
             self.wave_index += 1
             self.spawned_in_wave = 0
@@ -147,8 +143,35 @@ class Unit:
                 return n
             
         return None
-            
 
+class GruntUnit(Unit):
+    def __init__(self, start_node):
+        super().__init__(start_node, "grunt", 100)
+
+
+class TankUnit(Unit):
+    def __init__(self, start_node):
+        super().__init__(start_node, "tank", 60)
+
+class FastUnit(Unit):
+    def __init__(self, start_node):
+        super().__init__(start_node, "fast", 140)
+
+
+def create_unit(start_node, unit_type):
+    if unit_type == "grunt":
+        return GruntUnit(start_node)
+    
+    elif unit_type == "tank":
+        return TankUnit(start_node)
+    
+    else:
+        return FastUnit(start_node)
+    
+
+            
+# class Tower:
+#     def __init__(self,)
 
 
         

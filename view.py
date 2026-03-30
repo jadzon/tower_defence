@@ -2,7 +2,12 @@ from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPen, QColor, QBrush
 from PyQt6.QtWidgets import QGraphicsEllipseItem
-
+from engine import Game, Unit
+unit_display_set = {
+    "grunt": ["lime", 12],
+    "tank": ["red", 20],
+    "fast": ["blue", 8]
+}
 class GameView(QGraphicsView):
     def __init__(self, game_engine):
         super().__init__()
@@ -45,6 +50,10 @@ class GameView(QGraphicsView):
 
     def sync_units(self):
         self._ensure_unit_graphics()
-        r = self._radius
         for item, unit in zip(self._unit_items, self.engine.units):
             item.setPos(unit.x, unit.y)
+            # print(f"Unit type: {unit.unit_type}")
+            # print(f"Color: {unit_colors[unit.unit_type]}")
+            c, r = unit_display_set[unit.unit_type] 
+            item.setRect(-r, -r, 2 * r, 2 * r)
+            item.setBrush(QBrush(QColor(c)))

@@ -15,7 +15,7 @@ class MainWindow(QMainWindow):
         self.main_layout.setContentsMargins(0,0,0,0)
         self.main_layout.setSpacing(0)
 
-        self.engine = Game()
+        self.engine: Game = Game()
         self.game_view = GameView(self.engine)
         self.main_layout.addWidget(self.game_view)
 

@@ -17,7 +17,9 @@
         "goal_node_index": 3
       },
       "waves": [
-        { "delay_sec": 0, "count": 3, "type": "grunt", "interval_sec": 0.5 }
+        { "delay_sec": 0, "count": 3, "type": "grunt", "interval_sec": 0.5 },
+        { "delay_sec": 1, "count": 2, "type": "tank", "interval_sec": 1.0 },
+        { "delay_sec": 3, "count": 10, "type": "fast", "interval_sec": 0.2 }
       ]
     }
   ]
