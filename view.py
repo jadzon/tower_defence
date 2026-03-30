@@ -52,6 +52,10 @@ class GameView(QGraphicsView):
 
     def sync_units(self):
         self._ensure_unit_graphics()
+        while len(self._unit_items) > len(self.engine.units):
+            item = self._unit_items.pop()
+            self.scene.removeItem(item)
+            
         for item, unit in zip(self._unit_items, self.engine.units):
             item.setPos(unit.x, unit.y)
             # print(f"Unit type: {unit.unit_type}")

@@ -34,15 +34,21 @@ class Game:
         self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
         
         self.place_tower(self.tower_slots[0],"basic")
-        
+
     def tick(self,dt):
 
         self.elapsed += dt
 
         self._process_waves()
         
+        for t in self.towers:
+            t.update(dt, self.units)
+
         for u in self.units:
             u.update(dt)
+
+        self._remove_dead_units()
+        
     
     def _add_unit(self, spawn_node, unit_type):
         unit = create_unit(spawn_node,unit_type)
@@ -82,6 +88,10 @@ class Game:
             tower = BasicTower(tower_slot.x,tower_slot.y)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
+    
+    def _remove_dead_units(self):
+        self.units = [u for u in self.units if not u.finished]
+        
 
 class Node:
 
@@ -117,6 +127,7 @@ class Node:
 class Unit:
     
     def __init__(self, start_node, unit_type, speed):
+        self.health = 3
         self.current_node = start_node
         self.next_node = start_node.neighbors[0]
         self.unit_type = unit_type
@@ -156,6 +167,15 @@ class Unit:
                 return n
             
         return None
+    
+    def take_damage(self, dmg):
+        self.health -= dmg
+        if self.health <=0:
+            self.health = 0
+            self.finished = True
+        
+        print(f"{self.unit_type} HP: {self.health}")
+
     
 
 class GruntUnit(Unit):
@@ -205,6 +225,38 @@ class Tower:
         self.range = range
         self.damage = damage
         self.fire_rate = fire_rate
+        self.cooldown = 0.0
+    
+    def attack(self, t_unit: Unit):
+        if t_unit is None:
+            return
+        
+        t_unit.take_damage(self.damage)
+
+    def choose_target(self,units):
+        for u in units:
+            if u.finished:
+                continue
+            dist_x = u.x - self.x
+            dist_y = u.y - self.y
+            if dist_x*dist_x + dist_y*dist_y <= self.range * self.range:
+                return u
+        return None
+    
+    def update(self, dt, units):
+        self.cooldown -= dt
+        if self.cooldown > 0:
+            return
+        
+        target = self.choose_target(units)
+        if target is None:
+            return
+        
+        self.attack(target)
+        self.cooldown= 1.0/self.fire_rate
+
+
+
 
 class BasicTower(Tower):
     def __init__(self, x,y):
