@@ -19,7 +19,7 @@ class GameView(QGraphicsView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        self._unit_items = []
+        self._unit_items = {}
         self._towers = []
         self._tower_slots= []
         self._radius = 12
@@ -42,27 +42,32 @@ class GameView(QGraphicsView):
                 print(f"Drawing {neighbor}")
     
 
-    def _ensure_unit_graphics(self):
-        r = self._radius
-        while len(self._unit_items) < len(self.engine.units):
-            item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
-            item.setBrush(QBrush(QColor("lime")))
-            self.scene.addItem(item)
-            self._unit_items.append(item)
-
     def sync_units(self):
-        self._ensure_unit_graphics()
-        while len(self._unit_items) > len(self.engine.units):
-            item = self._unit_items.pop()
+       
+        #1. remove unit items that dont exist
+        current_units = set(self.engine.units)
+        to_remove = [u for u in self._unit_items if u not in current_units]
+        for u in to_remove:
+            item = self._unit_items.pop(u)
             self.scene.removeItem(item)
-            
-        for item, unit in zip(self._unit_items, self.engine.units):
-            item.setPos(unit.x, unit.y)
-            # print(f"Unit type: {unit.unit_type}")
-            # print(f"Color: {unit_colors[unit.unit_type]}")
-            c, r = unit_display_set[unit.unit_type] 
+
+        #2. create new unit graphics
+        for unit in self.engine.units:
+            if unit not in self._unit_items:
+                c,r = unit_display_set[unit.unit_type]
+                item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
+                item.setBrush(QBrush(QColor(c)))
+                self.scene.addItem(item)
+                self._unit_items[unit] = item
+
+        #3. update pos + update render
+        for unit in self.engine.units:
+            item = self._unit_items[unit]
+            c,r = unit_display_set[unit.unit_type]
             item.setRect(-r, -r, 2 * r, 2 * r)
             item.setBrush(QBrush(QColor(c)))
+            item.setPos(unit.x, unit.y)
+
     
     def sync_towers(self):
         r = self._radius

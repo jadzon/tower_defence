@@ -262,5 +262,13 @@ class BasicTower(Tower):
     def __init__(self, x,y):
         super().__init__("basic",x,y,200,1,3)
 
+class RocketeerTower(Tower):
+    def __init__(self,x,y):
+        super().__init__("rocketeer",x,y,400,3,1)
+
+class BeamTower(Tower):
+    def __init__(self,x,y):
+        super().__init__("beam",x,y,300,1,0.5)
+
 
         
