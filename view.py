@@ -28,6 +28,7 @@ class GameView(QGraphicsView):
         self._towers = []
         self._tower_slots= []
         self._radius = 12
+        self._bullet_items = {}
     
     def setFullScreen(self,event):
         self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
@@ -95,3 +96,30 @@ class GameView(QGraphicsView):
         
         for item, t_slot in zip(self._tower_slots, self.engine.tower_slots):
             item.setPos(t_slot.x,t_slot.y)
+    
+    def sync_bullets(self):
+         #1. remove bullet items that dont exist
+        current_bullets = set(self.engine.bullets)
+        to_remove = [b for b in self._bullet_items if b not in current_bullets]
+        for b in to_remove:
+            item = self._bullet_items.pop(b)
+            self.scene.removeItem(item)
+
+        #2. create new bullet graphics
+        for bullet in self.engine.bullets:
+            if bullet not in self._bullet_items:
+                c = QColor("white")
+                r = 3
+                item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
+                item.setBrush(QBrush(QColor(c)))
+                self.scene.addItem(item)
+                self._bullet_items[bullet] = item
+
+        #3. update pos + update render
+        for bullet in self.engine.bullets:
+            item = self._bullet_items[bullet]
+            # c = QColor("white")
+            # r = 3
+            # item.setRect(-r, -r, 2 * r, 2 * r)
+            # item.setBrush(QBrush(QColor(c)))
+            item.setPos(bullet.x, bullet.y)

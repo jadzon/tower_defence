@@ -45,7 +45,9 @@ class MainWindow(QMainWindow):
         self.engine.tick(dt)
         self.game_view.sync_tower_slots()
         self.game_view.sync_towers()
+        self.game_view.sync_bullets()
         self.game_view.sync_units()
+        
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

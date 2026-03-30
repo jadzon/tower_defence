@@ -1,5 +1,4 @@
 import math
-from mimetypes import init
 from config import load_game_config
 
 class Game:
@@ -32,7 +31,7 @@ class Game:
         self.dt = 1
         self.towers: list[Tower] = []
         self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
-        
+        self.bullets: list[Bullet] = []
         self.place_tower(self.tower_slots[0],"basic")
         self.place_tower(self.tower_slots[1],"rocketeer")
 
@@ -43,12 +42,19 @@ class Game:
         self._process_waves()
         
         for t in self.towers:
-            t.update(dt, self.units)
+            bullet = t.update(dt, self.units)
+            if bullet is not None:
+                self.bullets.append(bullet)
+
 
         for u in self.units:
             u.update(dt)
 
+        for b in self.bullets:
+            b.update(dt)
+
         self._remove_dead_units()
+        self._remove_finished_bullets()
         
     
     def _add_unit(self, spawn_node, unit_type):
@@ -101,6 +107,9 @@ class Game:
     
     def _remove_dead_units(self):
         self.units = [u for u in self.units if not u.finished]
+    
+    def _remove_finished_bullets(self):
+        self.bullets= [b for b in self.bullets if not b.finished]
         
 
 class Node:
@@ -136,8 +145,8 @@ class Node:
 
 class Unit:
     
-    def __init__(self, start_node, unit_type, speed):
-        self.health = 3
+    def __init__(self, start_node, unit_type, speed, health):
+        self.health = health
         self.current_node = start_node
         self.next_node = start_node.neighbors[0]
         self.unit_type = unit_type
@@ -190,16 +199,16 @@ class Unit:
 
 class GruntUnit(Unit):
     def __init__(self, start_node):
-        super().__init__(start_node, "grunt", 100)
+        super().__init__(start_node, "grunt", 100,3)
 
 
 class TankUnit(Unit):
     def __init__(self, start_node):
-        super().__init__(start_node, "tank", 60)
+        super().__init__(start_node, "tank", 60,10)
 
 class FastUnit(Unit):
     def __init__(self, start_node):
-        super().__init__(start_node, "fast", 140)
+        super().__init__(start_node, "fast", 140,1)
 
 
 def create_unit(start_node, unit_type):
@@ -240,9 +249,10 @@ class Tower:
     
     def attack(self, t_unit: Unit):
         if t_unit is None:
-            return
+            return None
         
-        t_unit.take_damage(self.damage)
+        bullet = BasicBullet(self.x,self.y,t_unit,self.damage)
+        return bullet
 
     def choose_target(self,units):
         for u in units:
@@ -257,19 +267,20 @@ class Tower:
     def update(self, dt, units):
         self.cooldown -= dt
         if self.cooldown > 0:
-            return
+            return None
         if self.pick_target is None:
-            self.pick_target = self._pick_target_nearest
+            self.pick_target = self._pick_target_highest_hp
         target = self.pick_target(units)
         if target is None:
-            return
+            return None
         
-        self.attack(target)
+        bullet = self.attack(target)
         self.cooldown= 1.0/self.fire_rate
+        return bullet
 
     def change_targeting_strategy(self, strategy):
         if strategy == "nearest":
-            self.pick_target = self._pick_target_highest_hp
+            self.pick_target = self._pick_target_nearest
     
     def _pick_target_nearest(self,units):
         closest_dist = math.inf
@@ -311,10 +322,6 @@ class Tower:
         return unit_highest_hp
 
 
-
-
-
-
 class BasicTower(Tower):
     def __init__(self, x,y):
         super().__init__("basic",x,y,200,1,3)
@@ -326,6 +333,47 @@ class RocketeerTower(Tower):
 class BeamTower(Tower):
     def __init__(self,x,y):
         super().__init__("beam",x,y,300,1,0.5)
+
+
+class Bullet:
+    def __init__(self,type, x, y, speed, damage, target: Unit):
+        self.x = x
+        self.y = y
+        self.type = type
+        self.speed = speed
+        self.damage = damage
+        self.target = target
+        self.finished = False
+    
+    def update(self, dt):
+        if self.target.finished:
+            self.finished = True
+            return
+        dist_x = self.target.x - self.x
+        dist_y = self.target.y - self.y
+        dist = math.hypot(dist_x, dist_y)
+
+        if dist < 1:
+            self.x = self.target.x
+            self.y = self.target.y
+            self.finished = True
+            self._deal_dmg()
+            return
+
+
+        step = min(self.speed * dt, dist)
+        self.x += (dist_x/dist) * step
+        self.y += (dist_y/dist) * step
+    
+    def _deal_dmg(self):
+        self.target.take_damage(self.damage)
+
+
+class BasicBullet(Bullet):
+    def __init__(self, x, y, target, damage):
+        super().__init__("basic",x,y,300, damage, target)
+
+
 
 
         
