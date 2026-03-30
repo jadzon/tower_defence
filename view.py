@@ -20,6 +20,8 @@ class GameView(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._unit_items = []
+        self._towers = []
+        self._tower_slots= []
         self._radius = 12
     
     def setFullScreen(self,event):
@@ -57,3 +59,25 @@ class GameView(QGraphicsView):
             c, r = unit_display_set[unit.unit_type] 
             item.setRect(-r, -r, 2 * r, 2 * r)
             item.setBrush(QBrush(QColor(c)))
+    
+    def sync_towers(self):
+        r = self._radius
+        while len(self._towers) < len(self.engine.towers):
+            item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
+            item.setBrush(QBrush(QColor("white")))
+            self.scene.addItem(item)
+            self._towers.append(item)
+        
+        for item, tower in zip(self._towers, self.engine.towers):
+            item.setPos(tower.x,tower.y)
+
+    def sync_tower_slots(self):
+        r = 15
+        while len(self._tower_slots) < len(self.engine.tower_slots):
+            item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
+            item.setBrush(QBrush(QColor("black")))
+            self.scene.addItem(item)
+            self._tower_slots.append(item)
+        
+        for item, t_slot in zip(self._tower_slots, self.engine.tower_slots):
+            item.setPos(t_slot.x,t_slot.y)

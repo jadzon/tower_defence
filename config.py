@@ -15,10 +15,11 @@ class WaveSpec:
 
 @dataclass
 class MapSpec:
-    nodes: list[tuple[float, float]]
+    nodes: list[tuple[int,int]]
     edges: list[tuple[int, int]]
     spawn_node_index: int
     goal_node_index: int
+    tower_slots: list[tuple[int,int]]
 
 
 @dataclass
@@ -49,11 +50,13 @@ def _parse_waves(raw: list[dict]) -> list[WaveSpec]:
 def _parse_map(raw: dict) -> MapSpec:
     nodes = [(n["x"], n["y"]) for n in raw["nodes"]]
     edges = [(e[0], e[1]) for e in raw["edges"]]
+    tower_slots = [(s["x"], s["y"]) for s in raw["tower_slots"]]
     return MapSpec(
         nodes=nodes,
         edges=edges,
         spawn_node_index=raw["spawn_node_index"],
         goal_node_index=raw["goal_node_index"],
+        tower_slots= tower_slots
     )
 
 

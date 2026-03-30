@@ -1,4 +1,5 @@
 import math
+from mimetypes import init
 from config import load_game_config
 
 class Game:
@@ -29,7 +30,11 @@ class Game:
         
         self.units: list[Unit] = []
         self.dt = 1
-    
+        self.towers: list[Tower] = []
+        self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
+        
+        self.place_tower(self.tower_slots[0],"basic")
+        
     def tick(self,dt):
 
         self.elapsed += dt
@@ -68,7 +73,15 @@ class Game:
             self.wave_index += 1
             self.spawned_in_wave = 0
             self.next_spawn_at = None
+    
+    def place_tower(self,tower_slot,tower_type):
 
+        if tower_slot.occupied:
+            return
+        if tower_type == "basic":
+            tower = BasicTower(tower_slot.x,tower_slot.y)
+            tower_slot.add_tower(tower)
+            self.towers.append(tower)
 
 class Node:
 
@@ -143,6 +156,7 @@ class Unit:
                 return n
             
         return None
+    
 
 class GruntUnit(Unit):
     def __init__(self, start_node):
@@ -168,10 +182,33 @@ def create_unit(start_node, unit_type):
     else:
         return FastUnit(start_node)
     
+class TowerSlot:
+    def __init__(self,x,y):
+        self.x = x
+        self.y = y
+        self.tower = None
 
-            
-# class Tower:
-#     def __init__(self,)
+    @property
+    def occupied(self): 
+        return self.tower is not None
+    
+    def add_tower(self,tower):
+        self.tower = tower
+
+
+
+class Tower:
+    def __init__(self,tower_type,x,y,range,damage,fire_rate):
+        self.tower_type = tower_type
+        self.x = x
+        self.y = y
+        self.range = range
+        self.damage = damage
+        self.fire_rate = fire_rate
+
+class BasicTower(Tower):
+    def __init__(self, x,y):
+        super().__init__("basic",x,y,200,1,3)
 
 
         

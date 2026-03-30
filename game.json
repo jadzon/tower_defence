@@ -14,7 +14,13 @@
         ],
         "edges": [[0, 1], [1, 2], [2, 3], [3,4],[4,5]],
         "spawn_node_index": 0,
-        "goal_node_index": 3
+        "goal_node_index": 3,
+        "tower_slots": [
+          { "x": 250, "y": 220 },
+          { "x": 520, "y": 220 },
+          { "x": 760, "y": 360 },
+          { "x": 920, "y": 620 }
+        ]
       },
       "waves": [
         { "delay_sec": 0, "count": 3, "type": "grunt", "interval_sec": 0.5 },

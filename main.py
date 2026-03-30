@@ -43,6 +43,8 @@ class MainWindow(QMainWindow):
     def _on_game_tick(self):
         dt = self._tick_ms / 1000.0
         self.engine.tick(dt)
+        self.game_view.sync_tower_slots()
+        self.game_view.sync_towers()
         self.game_view.sync_units()
 
 if __name__ == "__main__":
