@@ -8,6 +8,11 @@ unit_display_set = {
     "tank": ["red", 20],
     "fast": ["blue", 8]
 }
+tower_display_set = {
+    "basic": "white",
+    "rocketeer": "orange",
+    "beam": "yellow"
+}
 class GameView(QGraphicsView):
     def __init__(self, game_engine):
         super().__init__()

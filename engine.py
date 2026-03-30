@@ -34,6 +34,7 @@ class Game:
         self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
         
         self.place_tower(self.tower_slots[0],"basic")
+        self.place_tower(self.tower_slots[1],"rocketeer")
 
     def tick(self,dt):
 
@@ -88,6 +89,15 @@ class Game:
             tower = BasicTower(tower_slot.x,tower_slot.y)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
+        elif tower_type == "rocketeer":
+            tower = RocketeerTower(tower_slot.x,tower_slot.y)
+            tower_slot.add_tower(tower)
+            self.towers.append(tower)
+        else:
+            tower = BeamTower(tower_slot.x,tower_slot.y)
+            tower_slot.add_tower(tower)
+            self.towers.append(tower)
+
     
     def _remove_dead_units(self):
         self.units = [u for u in self.units if not u.finished]
@@ -226,6 +236,7 @@ class Tower:
         self.damage = damage
         self.fire_rate = fire_rate
         self.cooldown = 0.0
+        self.pick_target = None
     
     def attack(self, t_unit: Unit):
         if t_unit is None:
@@ -247,13 +258,59 @@ class Tower:
         self.cooldown -= dt
         if self.cooldown > 0:
             return
-        
-        target = self.choose_target(units)
+        if self.pick_target is None:
+            self.pick_target = self._pick_target_nearest
+        target = self.pick_target(units)
         if target is None:
             return
         
         self.attack(target)
         self.cooldown= 1.0/self.fire_rate
+
+    def change_targeting_strategy(self, strategy):
+        if strategy == "nearest":
+            self.pick_target = self._pick_target_highest_hp
+    
+    def _pick_target_nearest(self,units):
+        closest_dist = math.inf
+        closest_unit = None
+        for u in units:
+            if u.finished:
+                continue
+            dist = math.hypot(u.x-self.x,u.y-self.y)
+            if dist > self.range:
+                continue
+            if closest_dist > dist:
+                closest_dist = dist
+                closest_unit = u 
+
+        return closest_unit
+    
+    def _pick_target_lowest_hp(self,units):
+        lowest_hp = math.inf
+        unit_lowest_hp = None
+        for u in units:
+            if u.finished:
+                continue
+            if lowest_hp > u.health:
+                lowest_hp = u.health
+                unit_lowest_hp = u 
+
+        return unit_lowest_hp
+    
+    def _pick_target_highest_hp(self,units):
+        highest_hp = 0
+        unit_highest_hp = None
+        for u in units:
+            if u.finished:
+                continue
+            if highest_hp < u.health:
+                highest_hp = u.health
+                unit_highest_hp = u 
+
+        return unit_highest_hp
+
+
 
 
 
