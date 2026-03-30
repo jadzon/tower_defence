@@ -21,10 +21,7 @@ class Game:
         self.first_node = self.nodes[cfg.levels[0].map.spawn_node_index]
         self.last_node = self.nodes[cfg.levels[0].map.goal_node_index]
 
-        self.wave_delay = cfg.levels[0].waves[0].delay_sec
-        self.wave_interval = cfg.levels[0].waves[0].interval_sec
-        self.unit_type = cfg.levels[0].waves[0].unit_type
-        self.unit_count = cfg.levels[0].waves[0].count
+        self.waves = cfg.levels[0].waves
         self.elapsed = 0
         self.wave_index = 0
         self.spawned_in_wave = 0
@@ -34,14 +31,47 @@ class Game:
         self.dt = 1
     
     def tick(self,dt):
-        if len(self.units) == 0:
-            return
+
+        self.elapsed += dt
+
+        self._process_waves()
         
         for u in self.units:
             u.update(dt)
+    
+    def _add_unit(self, t_node, unit_type):
+        unit = Unit(t_node,"grunt",200)
+        self.units.append(unit)
+    
+    def _process_waves(self):
+        waves = self.waves  # list[WaveSpec]
+        if self.wave_index >= len(waves):
+            return
 
-        
-        
+        w = waves[self.wave_index]
+
+    # Wave not started yet
+        if self.elapsed < w.delay_sec:
+            return
+
+    # First spawn of this wave: schedule first spawn time
+        if self.next_spawn_at is None:
+            self.next_spawn_at = w.delay_sec
+
+    # Time to spawn?
+        while (
+            self.spawned_in_wave < w.count
+            and self.elapsed >= self.next_spawn_at
+        ):
+            self._add_unit(self.first_node, w.unit_type)
+            self.spawned_in_wave += 1
+            self.next_spawn_at += w.interval_sec  # or: self.elapsed + w.interval_sec
+
+        # Wave finished?
+        if self.spawned_in_wave >= w.count:
+            self.wave_index += 1
+            self.spawned_in_wave = 0
+            self.next_spawn_at = None
 
 
 class Node:
