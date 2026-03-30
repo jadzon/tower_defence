@@ -1,37 +1,45 @@
 import math
+from config import load_game_config
 
 class Game:
     def __init__(self):
-        self.waypoints = [(100, 100), (400, 100), (400, 500), (1000, 500)]
-        node1 = Node(100, 100)
-        node2 = Node(400, 100)
-        node3 = Node(400, 500)
-        node4 = Node(1000, 500)
-        node5 = Node(1000, 600)
-        node6 = Node(300, 600)
 
-        node1.add_neighbor(node2)
-        node2.add_neighbor(node3)
-        node3.add_neighbor(node4)
-        node4.add_neighbor(node5)
-        node5.add_neighbor(node6)
+        cfg = load_game_config()
 
-        print(node1.get_neighbors())
-        print(node2.get_neighbors())
-        print(node3.get_neighbors())
-        print(node4.get_neighbors())
+        self.levels = cfg.levels
 
-        self.nodes = [node1, node2, node3, node4, node5, node6]
-        self.first_node = node1
-        self.last_node = node6
-
+        #level 1
+        self.nodes: list[Node] =  []
+        # get nodes
+        for n_x, n_y in cfg.levels[0].map.nodes:
+            self.nodes.append(Node(n_x,n_y))
         
-        self.units = [Unit(self.first_node,"grunt",100)]
+        #get node relations
+        for a,b in cfg.levels[0].map.edges:
+            self.nodes[a].add_neighbor(self.nodes[b])
+
+        self.first_node = self.nodes[cfg.levels[0].map.spawn_node_index]
+        self.last_node = self.nodes[cfg.levels[0].map.goal_node_index]
+
+        self.wave_delay = cfg.levels[0].waves[0].delay_sec
+        self.wave_interval = cfg.levels[0].waves[0].interval_sec
+        self.unit_type = cfg.levels[0].waves[0].unit_type
+        self.unit_count = cfg.levels[0].waves[0].count
+        self.elapsed = 0
+        self.wave_index = 0
+        self.spawned_in_wave = 0
+        self.next_spawn_at = 0
+        
+        self.units = []
         self.dt = 1
     
     def tick(self,dt):
+        if len(self.units) == 0:
+            return
+        
         for u in self.units:
             u.update(dt)
+
         
         
 
