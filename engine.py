@@ -268,6 +268,7 @@ class Tower:
         self.cooldown -= dt
         if self.cooldown > 0:
             return None
+        units = [u for u in units if self._is_unit_in_range(u)]
         if self.pick_target is None:
             self.pick_target = self._pick_target_highest_hp
         target = self.pick_target(units)
@@ -282,6 +283,12 @@ class Tower:
         if strategy == "nearest":
             self.pick_target = self._pick_target_nearest
     
+    def _is_unit_in_range(self,unit):
+        dist = math.hypot(unit.x-self.x,unit.y-self.y)
+        if dist > self.range:
+            return False
+        return True
+
     def _pick_target_nearest(self,units):
         closest_dist = math.inf
         closest_unit = None
@@ -328,7 +335,14 @@ class BasicTower(Tower):
 
 class RocketeerTower(Tower):
     def __init__(self,x,y):
-        super().__init__("rocketeer",x,y,400,3,1)
+        super().__init__("rocketeer",x,y,800,3,1)
+
+    def attack(self, t_unit: Unit):
+        if t_unit is None:
+            return None
+        
+        bullet = RocketBullet(self.x,self.y,t_unit,self.damage)
+        return bullet
 
 class BeamTower(Tower):
     def __init__(self,x,y):
@@ -353,13 +367,12 @@ class Bullet:
         dist_y = self.target.y - self.y
         dist = math.hypot(dist_x, dist_y)
 
-        if dist < 1:
+        if dist < 3:
             self.x = self.target.x
             self.y = self.target.y
             self.finished = True
             self._deal_dmg()
             return
-
 
         step = min(self.speed * dt, dist)
         self.x += (dist_x/dist) * step
@@ -371,8 +384,17 @@ class Bullet:
 
 class BasicBullet(Bullet):
     def __init__(self, x, y, target, damage):
-        super().__init__("basic",x,y,300, damage, target)
+        super().__init__("basic",x,y,500, damage, target)
 
+class RocketBullet(Bullet):
+    def __init__(self, x, y, target, damage):
+        super().__init__("rocket",x,y,50, damage, target)
+        self.acceleration = 700
+        self.max_speed = 1500
+
+    def update(self, dt):
+        self.speed = min(self.speed + self.acceleration * dt, self.max_speed)
+        super().update(dt)
 
 
 
