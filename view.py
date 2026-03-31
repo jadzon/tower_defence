@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPen, QColor, QBrush
-from PyQt6.QtWidgets import QGraphicsEllipseItem
-from engine import Game, Unit
+from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
+from engine import BeamBullet, Game, Unit
 unit_display_set = {
     "grunt": ["lime", 12],
     "tank": ["red", 20],
@@ -112,18 +112,28 @@ class GameView(QGraphicsView):
         #2. create new bullet graphics
         for bullet in self.engine.bullets:
             if bullet not in self._bullet_items:
-                c = QColor("white")
-                r = 3
-                item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
-                item.setBrush(QBrush(QColor(c)))
-                self.scene.addItem(item)
-                self._bullet_items[bullet] = item
+                if isinstance(bullet,BeamBullet):
+                    c = QColor("orange")
+                    c.setAlpha(180)
+                    item = QGraphicsLineItem(bullet.t_x,bullet.t_y,bullet.x,bullet.y)
+                    pen = QPen(c,2* bullet.beam_radius)
+                    item.setPen(pen)
+                    self.scene.addItem(item)
+                    self._bullet_items[bullet] = item
+
+
+                else: 
+                    c = QColor("white")
+                    r = 3
+                    item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
+                    item.setBrush(QBrush(QColor(c)))
+                    self.scene.addItem(item)
+                    self._bullet_items[bullet] = item
 
         #3. update pos + update render
         for bullet in self.engine.bullets:
             item = self._bullet_items[bullet]
-            # c = QColor("white")
-            # r = 3
-            # item.setRect(-r, -r, 2 * r, 2 * r)
-            # item.setBrush(QBrush(QColor(c)))
-            item.setPos(bullet.x, bullet.y)
+            if isinstance(bullet,BeamBullet):
+                item.setLine(bullet.t_x, bullet.t_y, bullet.x, bullet.y)
+            else:
+                item.setPos(bullet.x, bullet.y)

@@ -347,7 +347,7 @@ class RocketeerTower(Tower):
 
 class BeamTower(Tower):
     def __init__(self,x,y):
-        super().__init__("beam",x,y,300,2,10)
+        super().__init__("beam",x,y,300,2,4)
 
     def attack(self, t_unit: Unit):
         if t_unit is None:
@@ -407,10 +407,12 @@ class RocketBullet(Bullet):
 class BeamBullet(Bullet):
     def __init__(self, x, y, target, damage):
         super().__init__("rocket",x,y,50, damage, target)
-        self.beam_radius = 20
+        self.beam_radius = 5
         self.t_x = x
         self.t_y = y
         self.beam_decay = 0.5
+        self.ttl = 8
+        self._damage_done = False
     
     def update(self,dt, units: list[Unit]):
         if self.target.finished:
@@ -419,8 +421,14 @@ class BeamBullet(Bullet):
         
         self.x = self.target.x
         self.y = self.target.y
-        self.finished = True
-        self._deal_dmg(units)
+        if self.ttl == 0:
+            self.finished = True
+
+        if self._damage_done == False:
+            self._damage_done = True
+            self.ttl -=1
+        else: 
+            self._deal_dmg(units)
         return
 
     def _deal_dmg(self, units: list[Unit]):
