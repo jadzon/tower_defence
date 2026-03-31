@@ -32,8 +32,9 @@ class Game:
         self.towers: list[Tower] = []
         self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
         self.bullets: list[Bullet] = []
-        self.place_tower(self.tower_slots[0],"basic")
-        self.place_tower(self.tower_slots[1],"rocketeer")
+        # self.place_tower(self.tower_slots[0],"basic")
+        # self.place_tower(self.tower_slots[1],"rocketeer")
+        self.place_tower(self.tower_slots[0],"beam")
 
     def tick(self,dt):
 
@@ -51,7 +52,7 @@ class Game:
             u.update(dt)
 
         for b in self.bullets:
-            b.update(dt)
+            b.update(dt,self.units)
 
         self._remove_dead_units()
         self._remove_finished_bullets()
@@ -346,7 +347,14 @@ class RocketeerTower(Tower):
 
 class BeamTower(Tower):
     def __init__(self,x,y):
-        super().__init__("beam",x,y,300,1,0.5)
+        super().__init__("beam",x,y,300,2,10)
+
+    def attack(self, t_unit: Unit):
+        if t_unit is None:
+            return None
+        
+        bullet = BeamBullet(self.x,self.y,t_unit,self.damage)
+        return bullet
 
 
 class Bullet:
@@ -359,7 +367,7 @@ class Bullet:
         self.target = target
         self.finished = False
     
-    def update(self, dt):
+    def update(self, dt, units: list[Unit]):
         if self.target.finished:
             self.finished = True
             return
@@ -384,17 +392,74 @@ class Bullet:
 
 class BasicBullet(Bullet):
     def __init__(self, x, y, target, damage):
-        super().__init__("basic",x,y,500, damage, target)
+        super().__init__("basic",x,y,400, damage, target)
 
 class RocketBullet(Bullet):
     def __init__(self, x, y, target, damage):
         super().__init__("rocket",x,y,50, damage, target)
-        self.acceleration = 700
+        self.acceleration = 1500
         self.max_speed = 1500
 
-    def update(self, dt):
+    def update(self, dt, units):
         self.speed = min(self.speed + self.acceleration * dt, self.max_speed)
-        super().update(dt)
+        super().update(dt, units)
+
+class BeamBullet(Bullet):
+    def __init__(self, x, y, target, damage):
+        super().__init__("rocket",x,y,50, damage, target)
+        self.beam_radius = 20
+        self.t_x = x
+        self.t_y = y
+        self.beam_decay = 0.5
+    
+    def update(self,dt, units: list[Unit]):
+        if self.target.finished:
+            self.finished = True
+            return
+        
+        self.x = self.target.x
+        self.y = self.target.y
+        self.finished = True
+        self._deal_dmg(units)
+        return
+
+    def _deal_dmg(self, units: list[Unit]):
+        
+        def _calculate_damage(dist):
+            damage = math.trunc((1-(dist/self.beam_radius))*self.damage)
+            return damage
+
+        dx = self.x - self.t_x
+        dy = self.y - self.t_y
+
+        if abs(dx) < 1e-6:
+            x0 = self.t_x
+            for u in units:
+                dist = abs(u.x-x0)
+                if dist <= self.beam_radius:
+                    dmg = _calculate_damage(dist)
+                    u.take_damage(dmg)
+
+        else:
+            a = dy/dx
+            b = self.y - a* self.x
+            for u in units:
+                if u.finished:
+                    continue
+                dist = abs(-a *u.x +u.y-b)/(a**2+1)
+                if dist <= self.beam_radius:
+                    dmg = _calculate_damage(dist)
+                    u.take_damage(dmg )
+                
+
+
+        
+        
+        
+
+    
+         
+
 
 
 

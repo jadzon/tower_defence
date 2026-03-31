@@ -13,6 +13,10 @@ tower_display_set = {
     "rocketeer": "orange",
     "beam": "yellow"
 }
+bullet_display_set = {
+    "tier1": "white",
+    "tier2": "blue"
+}
 class GameView(QGraphicsView):
     def __init__(self, game_engine):
         super().__init__()
