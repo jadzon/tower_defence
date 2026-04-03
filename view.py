@@ -124,7 +124,7 @@ class GameView(QGraphicsView):
 
                 else: 
                     c = QColor("white")
-                    r = 3
+                    r = 5
                     item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
                     item.setBrush(QBrush(QColor(c)))
                     self.scene.addItem(item)

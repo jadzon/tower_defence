@@ -8,13 +8,13 @@ class Game:
 
         self.levels = cfg.levels
 
-        #level 1
+        # level 1
         self.nodes: list[Node] =  []
         # get nodes
         for n_x, n_y in cfg.levels[0].map.nodes:
             self.nodes.append(Node(n_x,n_y))
         
-        #get node relations
+        # get node relations
         for a,b in cfg.levels[0].map.edges:
             self.nodes[a].add_neighbor(self.nodes[b])
 
@@ -32,14 +32,18 @@ class Game:
         self.towers: list[Tower] = []
         self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
         self.bullets: list[Bullet] = []
+        self.gold = cfg.economy.starting_gold
+        self.gold_generation_per_tick = cfg.economy.gold_generation
+        self.kill_reward: dict[str,int] = cfg.economy.kill_reward
+        self.tower_costs: dict[str,int] = cfg.economy.tower_costs
         # self.place_tower(self.tower_slots[0],"basic")
         # self.place_tower(self.tower_slots[1],"rocketeer")
-        self.place_tower(self.tower_slots[0],"beam")
+        self._place_tower(self.tower_slots[0],"beam")
+        self._place_tower(self.tower_slots[1],"rocketeer")
 
     def tick(self,dt):
 
         self.elapsed += dt
-
         self._process_waves()
         
         for t in self.towers:
@@ -88,7 +92,7 @@ class Game:
             self.spawned_in_wave = 0
             self.next_spawn_at = None
     
-    def place_tower(self,tower_slot,tower_type):
+    def _place_tower(self,tower_slot,tower_type):
 
         if tower_slot.occupied:
             return
@@ -104,6 +108,18 @@ class Game:
             tower = BeamTower(tower_slot.x,tower_slot.y)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
+    
+    def buy_tower(self,tower_slot,tower_type):
+        if tower_slot.occupied:
+            return
+        tower_cost = self.tower_costs[tower_type]
+        if self.gold < tower_cost:
+            return
+        
+        self.gold -= tower_cost
+        self._place_tower(tower_slot,tower_type)
+
+
 
     
     def _remove_dead_units(self):
@@ -195,13 +211,11 @@ class Unit:
             self.finished = True
         
         print(f"{self.unit_type} HP: {self.health}")
-
-    
+  
 
 class GruntUnit(Unit):
     def __init__(self, start_node):
         super().__init__(start_node, "grunt", 100,3)
-
 
 class TankUnit(Unit):
     def __init__(self, start_node):
@@ -271,7 +285,7 @@ class Tower:
             return None
         units = [u for u in units if self._is_unit_in_range(u)]
         if self.pick_target is None:
-            self.pick_target = self._pick_target_highest_hp
+            self.pick_target = self._pick_target_lowest_hp
         target = self.pick_target(units)
         if target is None:
             return None
@@ -345,9 +359,10 @@ class RocketeerTower(Tower):
         bullet = RocketBullet(self.x,self.y,t_unit,self.damage)
         return bullet
 
+
 class BeamTower(Tower):
     def __init__(self,x,y):
-        super().__init__("beam",x,y,300,2,4)
+        super().__init__("beam",x,y,300,1,4)
 
     def attack(self, t_unit: Unit):
         if t_unit is None:
@@ -355,7 +370,6 @@ class BeamTower(Tower):
         
         bullet = BeamBullet(self.x,self.y,t_unit,self.damage)
         return bullet
-
 
 class Bullet:
     def __init__(self,type, x, y, speed, damage, target: Unit):
@@ -396,28 +410,61 @@ class BasicBullet(Bullet):
 
 class RocketBullet(Bullet):
     def __init__(self, x, y, target, damage):
-        super().__init__("rocket",x,y,50, damage, target)
-        self.acceleration = 1500
+        super().__init__("rocket",x,y,10, damage, target)
+        self.acceleration = 1
         self.max_speed = 1500
 
-    def update(self, dt, units):
-        self.speed = min(self.speed + self.acceleration * dt, self.max_speed)
-        super().update(dt, units)
+    def update(self, dt, units: list[Unit]):
+        def _pick_target_nearest():
+            closest_dist = math.inf
+            closest_unit = None
+            for u in units:
+                if u.finished:
+                    continue
+                dist = math.hypot(u.x-self.x,u.y-self.y)
+                if closest_dist > dist:
+                    closest_dist = dist
+                    closest_unit = u 
+
+            return closest_unit
+        if self.target is not None and self.target.finished:
+            self.target = _pick_target_nearest()
+        if self.target is None:
+            self.finished = True
+            return
+        self.acceleration += self.acceleration*dt
+        speed = min((self.speed)**self.acceleration, self.max_speed)
+        dist_x = self.target.x - self.x
+        dist_y = self.target.y - self.y
+        dist = math.hypot(dist_x, dist_y)
+
+        if dist < 3:
+            self.x = self.target.x
+            self.y = self.target.y
+            self.finished = True
+            self._deal_dmg()
+            return
+
+        step = min(speed * dt, dist)
+        self.x += (dist_x/dist) * step
+        self.y += (dist_y/dist) * step
+
 
 class BeamBullet(Bullet):
     def __init__(self, x, y, target, damage):
         super().__init__("rocket",x,y,50, damage, target)
-        self.beam_radius = 5
+        self.beam_radius = 1
         self.t_x = x
         self.t_y = y
         self.beam_decay = 0.5
-        self.ttl = 8
+        self.ttl = 20
         self._damage_done = False
     
     def update(self,dt, units: list[Unit]):
         if self.target.finished:
             self.finished = True
             return
+        self.ttl -=1
         
         self.x = self.target.x
         self.y = self.target.y
@@ -426,8 +473,6 @@ class BeamBullet(Bullet):
 
         if self._damage_done == False:
             self._damage_done = True
-            self.ttl -=1
-        else: 
             self._deal_dmg(units)
         return
 
@@ -459,16 +504,3 @@ class BeamBullet(Bullet):
                     dmg = _calculate_damage(dist)
                     u.take_damage(dmg )
                 
-
-
-        
-        
-        
-
-    
-         
-
-
-
-
-        

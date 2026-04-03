@@ -1,4 +1,20 @@
 {
+  "global":{
+    "economy":{
+      "starting_gold": 500,
+      "gold_generation": 1,
+      "tower_costs":{
+        "basic": 100,
+        "rocketeer": 250,
+        "beam": 500
+      },
+      "kill_reward":{
+        "grunt":5,
+        "tank": 15,
+        "fast": 8
+      }
+    }
+  },
   "levels": [
     {
       "id": 1,
@@ -23,9 +39,9 @@
         ]
       },
       "waves": [
-        { "delay_sec": 0, "count": 3, "type": "grunt", "interval_sec": 0.5 },
-        { "delay_sec": 1, "count": 2, "type": "tank", "interval_sec": 1.0 },
-        { "delay_sec": 3, "count": 10, "type": "fast", "interval_sec": 0.2 }
+        { "delay_sec": 0, "count": 6, "type": "grunt", "interval_sec": 0.1 },
+        { "delay_sec": 1, "count": 15, "type": "tank", "interval_sec": 0.5 },
+        { "delay_sec": 6, "count": 10, "type": "fast", "interval_sec": 0.2 }
       ]
     }
   ]

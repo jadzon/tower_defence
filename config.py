@@ -4,6 +4,13 @@ from pathlib import Path
 
 _CONFIG_DIR = Path(__file__).resolve().parent
 
+@dataclass
+class EconomySpec:
+    starting_gold: int
+    gold_generation: int
+    tower_costs: dict[str,int]
+    kill_reward: dict[str,int]
+
 
 @dataclass
 class WaveSpec:
@@ -33,6 +40,7 @@ class LevelSpec:
 @dataclass
 class GameConfig:
     levels: list[LevelSpec]
+    economy: EconomySpec
 
 
 def _parse_waves(raw: list[dict]) -> list[WaveSpec]:
@@ -68,6 +76,14 @@ def _parse_level(raw: dict) -> LevelSpec:
         waves=_parse_waves(raw["waves"]),
     )
 
+def _parse_economy(raw: dict) ->EconomySpec:
+    return EconomySpec(
+        starting_gold = raw["starting_gold"],
+        gold_generation = raw["gold_generation"],
+        tower_costs = raw["tower_costs"],
+        kill_reward = raw["kill_reward"]
+    )
+
 
 def load_game_config() -> GameConfig:
     path = _CONFIG_DIR / "game.json"
@@ -75,4 +91,6 @@ def load_game_config() -> GameConfig:
         data = json.load(f)
 
     levels = [_parse_level(lvl) for lvl in data["levels"]]
-    return GameConfig(levels=levels)
+    economy = _parse_economy(data["global"]["economy"])
+
+    return GameConfig(levels=levels,economy=economy)
