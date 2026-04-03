@@ -1,7 +1,8 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QVBoxLayout, QWidget,QPushButton
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QVBoxLayout, QWidget,QPushButton, QMenu
 from PyQt6.QtCore import QTimer
-from engine import Game
+from PyQt6.QtGui import QCursor, QAction
+from engine import Game, TowerSlot
 from view import GameView
 
 class MainWindow(QMainWindow):
@@ -17,6 +18,7 @@ class MainWindow(QMainWindow):
 
         self.engine: Game = Game()
         self.game_view = GameView(self.engine)
+        self.game_view.slot_clicked.connect(self._on_slot_clicked)
         self.main_layout.addWidget(self.game_view)
 
         self.bottom_bar_widget = QWidget()
@@ -47,7 +49,27 @@ class MainWindow(QMainWindow):
         self.game_view.sync_towers()
         self.game_view.sync_bullets()
         self.game_view.sync_units()
+
+    def _on_slot_clicked(self, slot: TowerSlot):
+        menu = QMenu(self)
+        if not slot.occupied:
+
+            for tower_type, cost in self.engine.tower_costs.items():
+                label = f"{tower_type} ({cost} gold)"
+                act = QAction(label, self)
+                act.setData(tower_type)
+                menu.addAction(act)
+
+                chosen = menu.exec(QCursor.pos())
+                if chosen is None:
+                    return
+                tower_type = chosen.data()
+                self.engine.buy_tower(slot, tower_type)
         
+        else:
+            print("TODO: upgrade menu")
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

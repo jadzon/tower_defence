@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QRectF, pyqtSignal
 from PyQt6.QtGui import QPen, QColor, QBrush
 from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
-from engine import BeamBullet, Game, Unit
+from engine import BeamBullet, Game, Unit,TowerSlot
 unit_display_set = {
     "grunt": ["lime", 12],
     "tank": ["red", 20],
@@ -18,6 +18,7 @@ bullet_display_set = {
     "tier2": "blue"
 }
 class GameView(QGraphicsView):
+    slot_clicked = pyqtSignal(object)
     def __init__(self, game_engine):
         super().__init__()
         self.engine = game_engine
@@ -100,6 +101,8 @@ class GameView(QGraphicsView):
         
         for item, t_slot in zip(self._tower_slots, self.engine.tower_slots):
             item.setPos(t_slot.x,t_slot.y)
+            item.setData(0,t_slot)
+            item.setAcceptHoverEvents(True)
     
     def sync_bullets(self):
          #1. remove bullet items that dont exist
@@ -137,3 +140,14 @@ class GameView(QGraphicsView):
                 item.setLine(bullet.t_x, bullet.t_y, bullet.x, bullet.y)
             else:
                 item.setPos(bullet.x, bullet.y)
+    
+    def mousePressEvent(self, event):
+        if event is None:
+            return
+        p = self.mapToScene(event.position().toPoint())
+        for it in self.scene.items(p):
+            d =it.data(0)
+            if isinstance(d,TowerSlot):
+                self.slot_clicked.emit(d)
+                return
+        super().mousePressEvent(event)

@@ -123,7 +123,26 @@ class Game:
 
     
     def _remove_dead_units(self):
-        self.units = [u for u in self.units if not u.finished]
+        def _check_unit_type(u):
+            if isinstance(u,GruntUnit):
+                return "grunt"
+            elif isinstance(u, FastUnit):
+                return "fast"
+            else:
+                return "tank"
+        new_units = []
+        for u in self.units:
+            if u.killed:
+                self.gold += self.kill_reward[_check_unit_type(u)]
+                print("GOLD: ", self.gold)
+            elif u.finished:
+                print("penalty")
+            else:
+                new_units.append(u)
+        self.units = new_units
+
+        # dead_units = [u for u in self.units if u.killed]
+        # self.units = [u for u in self.units if not u.finished]
     
     def _remove_finished_bullets(self):
         self.bullets= [b for b in self.bullets if not b.finished]
@@ -172,6 +191,7 @@ class Unit:
         self.y = start_node.y
         self.visited_nodes = [start_node]
         self.finished = False
+        self.killed = False
 
     def update(self,dt):
         if self.next_node is None or self.finished:
@@ -208,6 +228,7 @@ class Unit:
         self.health -= dmg
         if self.health <=0:
             self.health = 0
+            self.killed = True
             self.finished = True
         
         print(f"{self.unit_type} HP: {self.health}")
