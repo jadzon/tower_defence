@@ -82,14 +82,27 @@ class GameView(QGraphicsView):
     
     def sync_towers(self):
         r = self._radius
-        while len(self._towers) < len(self.engine.towers):
-            item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
-            item.setBrush(QBrush(QColor("white")))
-            self.scene.addItem(item)
-            self._towers.append(item)
+        def _draw_towers():
+            while len(self._towers) < len(self.engine.towers):
+                item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
+                item.setBrush(QBrush(QColor("white")))
+                self.scene.addItem(item)
+                self._towers.append(item)
+
+        if len(self._towers) > len(self.engine.towers):
+            t_len = len(self._towers)
+            for t in range(t_len):
+                self.scene.removeItem(self._towers.pop())
+            self._towers = []
         
+        _draw_towers()
         for item, tower in zip(self._towers, self.engine.towers):
-            item.setPos(tower.x,tower.y)
+            item.setPos(tower.x, tower.y)
+            
+
+        
+        
+        
 
     def sync_tower_slots(self):
         r = 15

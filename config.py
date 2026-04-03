@@ -8,6 +8,7 @@ _CONFIG_DIR = Path(__file__).resolve().parent
 class EconomySpec:
     starting_gold: int
     gold_generation: int
+    sell_return_ratio: float
     tower_costs: dict[str,int]
     kill_reward: dict[str,int]
 
@@ -80,6 +81,7 @@ def _parse_economy(raw: dict) ->EconomySpec:
     return EconomySpec(
         starting_gold = raw["starting_gold"],
         gold_generation = raw["gold_generation"],
+        sell_return_ratio = raw["sell_return_ratio"],
         tower_costs = raw["tower_costs"],
         kill_reward = raw["kill_reward"]
     )

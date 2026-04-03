@@ -36,6 +36,7 @@ class Game:
         self.gold_generation_per_tick = cfg.economy.gold_generation
         self.kill_reward: dict[str,int] = cfg.economy.kill_reward
         self.tower_costs: dict[str,int] = cfg.economy.tower_costs
+        self.tower_sell_return_ratio: float = cfg.economy.sell_return_ratio
         # self.place_tower(self.tower_slots[0],"basic")
         # self.place_tower(self.tower_slots[1],"rocketeer")
         self._place_tower(self.tower_slots[0],"beam")
@@ -118,8 +119,18 @@ class Game:
         
         self.gold -= tower_cost
         self._place_tower(tower_slot,tower_type)
+    
+    def sell_tower(self, tower_slot):
 
-
+        if not tower_slot.occupied:
+            return
+        
+        self.towers = [t for t in self.towers if t is not tower_slot.tower]
+        gold = self.tower_costs[tower_slot.tower.tower_type] * self.tower_sell_return_ratio
+        gold  = math.trunc(gold)
+        self.gold += gold
+        tower_slot.remove_tower()
+        
 
     
     def _remove_dead_units(self):
@@ -269,7 +280,9 @@ class TowerSlot:
     
     def add_tower(self,tower):
         self.tower = tower
-
+    
+    def remove_tower(self):
+        self.tower = None
 
 
 class Tower:
@@ -281,7 +294,7 @@ class Tower:
         self.damage = damage
         self.fire_rate = fire_rate
         self.cooldown = 0.0
-        self.pick_target = None
+        self.pick_target = self._pick_target_nearest
     
     def attack(self, t_unit: Unit):
         if t_unit is None:
@@ -315,9 +328,6 @@ class Tower:
         self.cooldown= 1.0/self.fire_rate
         return bullet
 
-    def change_targeting_strategy(self, strategy):
-        if strategy == "nearest":
-            self.pick_target = self._pick_target_nearest
     
     def _is_unit_in_range(self,unit):
         dist = math.hypot(unit.x-self.x,unit.y-self.y)
@@ -363,7 +373,19 @@ class Tower:
                 unit_highest_hp = u 
 
         return unit_highest_hp
+    
 
+    def change_targeting_strategy(self, strategy: str) -> None:
+
+        mapping = {
+            "nearest": self._pick_target_nearest,
+            "weakest": self._pick_target_lowest_hp,
+            "strongest": self._pick_target_highest_hp,
+        }
+        fn = mapping.get(strategy)
+        if fn is None:
+            return
+        self.pick_target = fn
 
 class BasicTower(Tower):
     def __init__(self, x,y):

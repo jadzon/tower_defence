@@ -3,6 +3,7 @@
     "economy":{
       "starting_gold": 500,
       "gold_generation": 1,
+      "sell_return_ratio": 0.6,
       "tower_costs":{
         "basic": 100,
         "rocketeer": 250,

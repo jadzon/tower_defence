@@ -4,6 +4,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QCursor, QAction
 from engine import Game, TowerSlot
 from view import GameView
+import math
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -60,14 +61,43 @@ class MainWindow(QMainWindow):
                 act.setData(tower_type)
                 menu.addAction(act)
 
-                chosen = menu.exec(QCursor.pos())
-                if chosen is None:
-                    return
-                tower_type = chosen.data()
-                self.engine.buy_tower(slot, tower_type)
+            chosen = menu.exec(QCursor.pos())
+            if chosen is None:
+                return
+            tower_type = chosen.data()
+            self.engine.buy_tower(slot, tower_type)
         
         else:
-            print("TODO: upgrade menu")
+            tower = slot.tower
+            if tower is None:
+                return
+            menu = QMenu(self)
+            refund = math.trunc(
+                self.engine.tower_costs[tower.tower_type]
+                     * self.engine.tower_sell_return_ratio
+                        )
+            sell_act = QAction(f"Sell (+{refund} gold)", self)
+            sell_act.setData("sell")
+            menu.addAction(sell_act)
+            strategy_menu = QMenu("targeting strategy", self)
+            for key in (
+                "nearest",
+                "weakest",
+                "strongest",
+            ):
+                a = QAction(key, self)
+                a.setData(("target", key))
+                strategy_menu.addAction(a)
+            menu.addMenu(strategy_menu)
+            chosen = menu.exec(QCursor.pos())
+            if chosen is None:
+                return
+            data = chosen.data()
+            if data == "sell":
+                self.engine.sell_tower(slot)
+                return
+            elif isinstance(data, tuple) and len(data) == 2 and data[0] == "target":
+                tower.change_targeting_strategy(data[1])
 
 
 
