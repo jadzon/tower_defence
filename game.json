@@ -13,6 +13,7 @@
       "bullet_costs":{
         "basic": 50,
         "fire": 500,
+        "poison": 1000,
         "rocket": 50,
         "beam": 50,
         "vine": 50,

@@ -296,18 +296,24 @@ class Unit:
         self.killed = False
         self.slowed = False
         self.slow_factor = 0.5
+        self.burn_hi = 1 #burn hit interval
         self.burning = False
         self.burning_timer = 0
         self.burning_damage = 1
+        self.burning_time = 2.1
+        self.burning_last_hi = 0
+        self.poison_hi = 1 #poison hit interval
+        self.poisoned = False
+        self.poison_timer = 0
+        self.poison_damage = 1
+        self.poison_time = 2.1
+        self.poison_last_hi = 0
 
     def update(self,dt):
-        self.burning_timer += dt
+
         if self.next_node is None or self.finished:
             return
-        if self.burning and self.burning_timer>1:
-            self.take_damage(self.burning_damage)
-            print("damage")
-            self.burning_timer = 0
+        self._update_effects(dt)
         dist_x = (self.next_node.x - self.x) 
         dist_y = (self.next_node.y - self.y)
         dist = math.sqrt(math.pow(dist_x,2) + math.pow(dist_y,2))
@@ -351,6 +357,42 @@ class Unit:
     def add_fire_effect(self, damage):
         self.burning = True
         self.burning_damage = damage
+        self.burning_timer = 0
+        self.nurn_last_hi = 0
+    
+    def add_poison_effect(self, damage):
+        self.poisoned = True
+        self.poison_damage = damage
+        self.poison_timer = 0
+        self.poison_last_hi = 0
+    
+    def remove_poison_effect(self):
+        self.poisoned = False
+        self.poison_damage = 1
+    
+    def remove_burning_effect(self):
+        self.burning = False
+        self.burning_damage = 1
+    def _update_effects(self,dt):
+        if self.poisoned:
+            if self.poison_timer - self.poison_last_hi> self.poison_hi:
+                self.take_damage(self.poison_damage)
+                self.poison_last_hi +=self.poison_hi
+
+            self.poison_timer += dt
+            if self.poison_timer > self.poison_time:
+                self.remove_poison_effect()
+        
+        if self.burning:
+            if self.burning_timer - self.burning_last_hi> self.burn_hi:
+                self.take_damage(self.burning_damage)
+                self.burning_last_hi +=self.burn_hi
+            self.burning_timer += dt
+            if self.burning_timer > self.burning_time:
+                self.remove_burning_effect()
+        
+
+        
         
 
 
@@ -533,6 +575,7 @@ class Tower:
             "beam": BeamBullet,
             "vine": VineBullet,
             "fire": FireBullet,
+            "poison": PoisonBullet,
             "cluster": RocketClusterBullet,
             "spread-vine": SpreadVineBullet
             }
@@ -551,6 +594,7 @@ class Tower:
             "SpreadVineBullet":"spread-vine",
             "RocketBullet":"rocket",
             "RocketClusterBullet":"cluster",
+            "PoisonBullet":"poison"
         }
         return class_to_Name_dict[bullet_class_name]
     
@@ -647,7 +691,7 @@ class BasicTower(Tower):
     def __init__(self, x,y,last_node:Node):
         super().__init__("basic",x,y,200,1,3,last_node)
         self.create_bullet = BasicBullet
-        self._bullet_options.extend(["basic","fire"])
+        self._bullet_options.extend(["basic","fire","poison"])
 
 
 class RocketeerTower(Tower):
@@ -793,6 +837,48 @@ class FireBullet(Bullet):
     def _deal_dmg(self):
         self.target.take_damage(self.damage)
         self.target.add_fire_effect(self.fire_damage)
+
+class PoisonBullet(Bullet):
+    def __init__(self, x, y, target, damage):
+        super().__init__("poison",x,y,400, damage, target)
+        self.poison_damage = 1
+
+    def update(self, dt, units: list[Unit]):
+
+        def _pick_target_nearest(t_units):
+            closest_dist = math.inf
+            closest_unit = None
+            for u in t_units:
+                if u.finished:
+                    continue
+                dist = math.hypot(u.x-self.x,u.y-self.y)
+                if closest_dist > dist:
+                    closest_dist = dist
+                    closest_unit = u 
+
+            return closest_unit
+        
+        if self.target.finished:
+            self.finished = True
+            return
+        dist_x = self.target.x - self.x
+        dist_y = self.target.y - self.y
+        dist = math.hypot(dist_x, dist_y)
+
+        if dist < 3:
+            self.x = self.target.x
+            self.y = self.target.y
+            self.finished = True
+            self._deal_dmg()
+            if not self.target.finished:
+                nt = _pick_target_nearest([t for t in units if t not in [self.target]])
+                if nt is None:
+                    return
+                return [PoisonBullet(self.x, self.y, nt, self.damage)]
+            return
+        step = min(self.speed * dt, dist)
+        self.x += (dist_x/dist) * step
+        self.y += (dist_y/dist) * step
 
 class RocketBullet(Bullet):
     def __init__(self, x, y, target, damage, rocket_cluster_size=2):

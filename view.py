@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
 from PyQt6.QtGui import QPen, QColor, QBrush, QPainterPath
 from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsTextItem
-from engine import BeamBullet, Game, RocketBullet, Unit,TowerSlot, VineBullet, SpreadVineBullet
+from engine import BeamBullet, FireBullet, Game, PoisonBullet, RocketBullet, Unit,TowerSlot, VineBullet, SpreadVineBullet
 import math
 unit_display_set = {
     "grunt": ["lime", 12],
@@ -112,7 +112,7 @@ class GameView(QGraphicsView):
         _draw_towers()
         for it_tower, tower, label in zip(self._towers, self.engine.towers,self._tower_labels):
             it_tower.setPos(tower.x, tower.y)
-            label.setPlainText(self._tower_info(tower))  # albo inline string
+            label.setPlainText(self._tower_info(tower)) 
             br = label.boundingRect()
             label.setPos(tower.x - br.width() / 2, tower.y + r + 20)
             label.setZValue(100)   
@@ -225,7 +225,12 @@ class GameView(QGraphicsView):
                     self.scene.addItem(item)
                     self._bullet_items[bullet] = item
                 else: 
+                    
                     c = QColor("white")
+                    if isinstance(bullet,PoisonBullet):
+                        c = QColor("green")
+                    elif isinstance(bullet,FireBullet):
+                        c = QColor("orange")
                     r = 5
                     item = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
                     item.setBrush(QBrush(QColor(c)))

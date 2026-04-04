@@ -125,7 +125,8 @@ class MainWindow(QMainWindow):
                 cost = self.engine.upgrade_cost(tower, spec)
                 if cost is None:
                     cost = 0
-                label = f"{spec.type}: {spec.label}  ({cost} gold)"
+                cat = spec.kind if spec.kind == "bullet" else spec.type
+                label = f"{cat}: {spec.label}  ({cost} gold)"
                 act = QAction(label, self)
                 act.setData(spec)
                 act.setEnabled(cost <= self.engine.gold)
