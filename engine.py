@@ -88,8 +88,8 @@ class Game:
         self.add_gold(dt)
         
     
-    def _add_unit(self, spawn_node, unit_type):
-        unit = create_unit(spawn_node,unit_type)
+    def _add_unit(self, spawn_node, goal_node, unit_type):
+        unit = create_unit(spawn_node, goal_node, unit_type)
         self.units.append(unit)
     
     def _process_waves(self):
@@ -109,7 +109,7 @@ class Game:
             self.spawned_in_wave < w.count
             and self.elapsed >= self.next_spawn_at
         ):
-            self._add_unit(self.first_node, w.unit_type)
+            self._add_unit(self.first_node,self.last_node, w.unit_type)
             self.spawned_in_wave += 1
             self.next_spawn_at += w.interval_sec 
 
@@ -255,7 +255,7 @@ class Node:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.neighbors = []
+        self.neighbors: list[Node] = []
     
     def add_neighbor(self, neighbor):
         self.neighbors.append(neighbor)
@@ -283,15 +283,16 @@ class Node:
 
 class Unit:
     
-    def __init__(self, start_node, unit_type, speed, health):
+    def __init__(self, start_node:Node, goal_node: Node, unit_type, speed, health):
+        self.goal_node:Node = goal_node
         self.health = health
-        self.current_node = start_node
-        self.next_node = start_node.neighbors[0]
+        self.current_node:Node = start_node
+        self.next_node:Node | None = start_node.neighbors[0]
         self.unit_type = unit_type
         self.speed = speed
         self.x = start_node.x
         self.y = start_node.y
-        self.visited_nodes = [start_node]
+        self.visited_nodes:list[Node] = [start_node]
         self.finished = False
         self.killed = False
         self.slowed = False
@@ -333,13 +334,16 @@ class Unit:
         self.x += (dist_x/dist) * step
         self.y += (dist_y/dist) * step
 
-    def _choose_next_node(self):
+    def _choose_next_node(self) -> Node | None:
         neighbors = self.current_node.neighbors
         for n in neighbors:
             if n not in self.visited_nodes:
                 return n
-            
-        return None
+        if self.current_node != self.goal_node:
+            self.visited_nodes = [self.current_node]
+        else:
+            return None
+        return self._choose_next_node()
     
     def take_damage(self, dmg):
         self.health -= dmg
@@ -399,27 +403,27 @@ class Unit:
   
 
 class GruntUnit(Unit):
-    def __init__(self, start_node):
-        super().__init__(start_node, "grunt", 100,3)
+    def __init__(self, start_node: Node, goal_node: Node):
+        super().__init__(start_node,goal_node, "grunt", 100,3)
 
 class TankUnit(Unit):
-    def __init__(self, start_node):
-        super().__init__(start_node, "tank", 60,10)
+    def __init__(self, start_node: Node, goal_node: Node):
+        super().__init__(start_node, goal_node, "tank", 60,10)
 
 class FastUnit(Unit):
-    def __init__(self, start_node):
-        super().__init__(start_node, "fast", 140,1)
+    def __init__(self, start_node: Node, goal_node: Node):
+        super().__init__(start_node, goal_node, "fast", 140,1)
 
 
-def create_unit(start_node, unit_type):
+def create_unit(start_node, goal_node, unit_type):
     if unit_type == "grunt":
-        return GruntUnit(start_node)
+        return GruntUnit(start_node,goal_node)
     
     elif unit_type == "tank":
-        return TankUnit(start_node)
+        return TankUnit(start_node,goal_node)
     
     else:
-        return FastUnit(start_node)
+        return FastUnit(start_node,goal_node)
     
 class TowerSlot:
     def __init__(self,x,y):
