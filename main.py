@@ -44,8 +44,6 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-       
-
         self.engine: Game = Game()
         self.game_view = GameView(self.engine)
         self.game_view.slot_clicked.connect(self._on_slot_clicked)
@@ -62,6 +60,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("game")
         self.showFullScreen()
         self.control_panel.pause_clicked.connect(self._toggle_pause)
+        
+        self._on_game_tick()
+        self._toggle_pause()
+        
     
     def _on_game_tick(self):
         dt = self._tick_ms / 1000.0

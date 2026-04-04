@@ -36,11 +36,12 @@ class Game:
         self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
         self.bullets: list[Bullet] = []
         self.gold = cfg.economy.starting_gold
-        self.gold_generation_per_tick = cfg.economy.gold_generation
+        self.gold_generation_per_sec = cfg.economy.gold_generation
         self.kill_reward: dict[str,int] = cfg.economy.kill_reward
         self.tower_costs: dict[str,int] = cfg.economy.tower_costs
         self.bullet_costs: dict[str,int] = cfg.economy.bullet_costs
         self.tower_sell_return_ratio: float = cfg.economy.sell_return_ratio
+        self._gold_timer = 0
         self.stat_upgrade_costs: dict[str, int] = {
             "damage": 100,
             "range": 100,
@@ -56,7 +57,11 @@ class Game:
         self._place_tower(self.tower_slots[0],"beam")
         self._place_tower(self.tower_slots[1],"vine")
         self._place_tower(self.tower_slots[2],"rocketeer")
-
+    def add_gold(self,dt):
+        self._gold_timer += dt
+        if self._gold_timer > 1:
+            self.gold += self.gold_generation_per_sec
+            self._gold_timer = 0
     def tick(self,dt):
 
         self.elapsed += dt
@@ -78,6 +83,7 @@ class Game:
 
         self._remove_dead_units()
         self._remove_finished_bullets()
+        self.add_gold(dt)
         
     
     def _add_unit(self, spawn_node, unit_type):

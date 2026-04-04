@@ -1,7 +1,8 @@
+from cProfile import label
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
 from PyQt6.QtGui import QPen, QColor, QBrush, QPainterPath
-from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem
+from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsTextItem
 from engine import BeamBullet, Game, RocketBullet, Unit,TowerSlot, VineBullet
 import math
 unit_display_set = {
@@ -35,6 +36,7 @@ class GameView(QGraphicsView):
 
         self._unit_items = {}
         self._towers = []
+        self._tower_labels = []
         self._tower_slots= []
         self._radius = 12
         self._bullet_items = {}
@@ -92,17 +94,28 @@ class GameView(QGraphicsView):
                 item.setBrush(QBrush(QColor("white")))
                 self.scene.addItem(item)
                 self._towers.append(item)
+                label = QGraphicsTextItem()
+                label.setDefaultTextColor(QColor("white"))
+                font = label.font()
+                font.setPointSize(8)
+                label.setFont(font)
+                self.scene.addItem(label)
+                self._tower_labels.append(label)
 
         if len(self._towers) > len(self.engine.towers):
-            t_len = len(self._towers)
-            for t in range(t_len):
+            while self._towers:
                 self.scene.removeItem(self._towers.pop())
-            self._towers = []
+            while self._tower_labels:
+                self.scene.removeItem(self._tower_labels.pop())
+            
         
         _draw_towers()
-        for item, tower in zip(self._towers, self.engine.towers):
-            item.setPos(tower.x, tower.y)
-            
+        for it_tower, tower, label in zip(self._towers, self.engine.towers,self._tower_labels):
+            it_tower.setPos(tower.x, tower.y)
+            label.setPlainText(self._tower_info(tower))  # albo inline string
+            br = label.boundingRect()
+            label.setPos(tower.x - br.width() / 2, tower.y + r + 20)
+            label.setZValue(100)   
 
     def sync_tower_slots(self):
         r = 15
@@ -245,3 +258,18 @@ class GameView(QGraphicsView):
                 self.slot_clicked.emit(d)
                 return
         super().mousePressEvent(event)
+    
+    def _tower_info(self,tower):
+        bt = tower.bullet_type
+        s = tower.get_stats()
+        lines = [
+            f"{s['type']}",
+            f"D: {s['damage']} R: {s['range']} F: {s['fire_rate']:.1f} B: {bt}",
+        ]
+        if tower.pick_target == tower._pick_target_nearest:
+            lines.append("T: nea")
+        elif tower.pick_target == tower._pick_target_lowest_hp:
+            lines.append("T: wea")
+        elif tower.pick_target == tower._pick_target_highest_hp:
+            lines.append("T: str")
+        return "\n".join(lines)
