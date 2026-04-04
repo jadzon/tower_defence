@@ -89,6 +89,15 @@ class MainWindow(QMainWindow):
                 a.setData(("target", key))
                 strategy_menu.addAction(a)
             menu.addMenu(strategy_menu)
+            upgrade_menu = QMenu("upgrade",self)
+            for bullet_key in tower.get_available_bullet_upgrades():
+                cost = self.engine.get_bullet_change_cost(tower,bullet_key)
+                label = f"Bullet → {bullet_key}, {cost} gold" 
+                act = QAction(label, self)
+                act.setData(("upgrade", "bullet", bullet_key))
+                upgrade_menu.addAction(act)
+            if upgrade_menu.actions():
+                menu.addMenu(upgrade_menu)
             chosen = menu.exec(QCursor.pos())
             if chosen is None:
                 return
@@ -98,6 +107,9 @@ class MainWindow(QMainWindow):
                 return
             elif isinstance(data, tuple) and len(data) == 2 and data[0] == "target":
                 tower.change_targeting_strategy(data[1])
+            elif isinstance(data, tuple) and len(data) == 3 and data[0] == "upgrade" and data[1] == "bullet":
+                tower.change_bullet_type(data[2])
+
 
 
 

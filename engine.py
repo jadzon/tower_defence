@@ -37,6 +37,7 @@ class Game:
         self.gold_generation_per_tick = cfg.economy.gold_generation
         self.kill_reward: dict[str,int] = cfg.economy.kill_reward
         self.tower_costs: dict[str,int] = cfg.economy.tower_costs
+        self.bullet_costs: dict[str,int] = cfg.economy.bullet_costs
         self.tower_sell_return_ratio: float = cfg.economy.sell_return_ratio
         # self.place_tower(self.tower_slots[0],"basic")
         # self.place_tower(self.tower_slots[1],"rocketeer")
@@ -54,12 +55,14 @@ class Game:
             if bullet is not None:
                 self.bullets.append(bullet)
 
-
         for u in self.units:
             u.update(dt)
+            
 
         for b in self.bullets:
-            b.update(dt,self.units)
+            b_c = b.update(dt,self.units)
+            if b_c is not None:
+                self.bullets.extend(b_c)
 
         self._remove_dead_units()
         self._remove_finished_bullets()
@@ -153,7 +156,6 @@ class Game:
         for u in self.units:
             if u.killed:
                 self.gold += self.kill_reward[_check_unit_type(u)]
-                print("GOLD: ", self.gold)
             elif u.finished:
                 print("penalty")
             else:
@@ -165,7 +167,20 @@ class Game:
     
     def _remove_finished_bullets(self):
         self.bullets= [b for b in self.bullets if not b.finished]
-        
+
+    
+    def change_bullet_type(self,tower,b_type):
+
+        cost = self.get_bullet_change_cost(tower,b_type)
+        if self.gold >= cost:
+            tower.change_bullet_type(b_type)
+            self.gold -= cost
+    
+    def get_bullet_change_cost(self, tower, b_type) -> int:
+        cost = self.bullet_costs[b_type] - self.bullet_costs[tower.bullet_type]
+        if cost < 0:
+            cost = math.trunc(cost * self.tower_sell_return_ratio)
+        return cost
 
 class Node:
 
@@ -213,11 +228,18 @@ class Unit:
         self.killed = False
         self.slowed = False
         self.slow_factor = 0.5
+        self.burning = False
+        self.burning_timer = 0
+        self.burning_damage = 1
 
     def update(self,dt):
+        self.burning_timer += dt
         if self.next_node is None or self.finished:
             return
-        
+        if self.burning and self.burning_timer>1:
+            self.take_damage(self.burning_damage)
+            print("damage")
+            self.burning_timer = 0
         dist_x = (self.next_node.x - self.x) 
         dist_y = (self.next_node.y - self.y)
         dist = math.sqrt(math.pow(dist_x,2) + math.pow(dist_y,2))
@@ -257,6 +279,11 @@ class Unit:
     def add_slow_effect(self):
         self.speed = math.trunc(self.speed * (1-self.slow_factor))
         self.slowed = True
+
+    def add_fire_effect(self, damage):
+        self.burning = True
+        self.burning_damage = damage
+        
 
 
   
@@ -312,12 +339,14 @@ class Tower:
         self.cooldown = 0.0
         self.pick_target = self._pick_target_nearest
         self.bullets: list[Bullet] = []
+        self.create_bullet = BasicBullet
+        self._bullet_options = []
     
     def attack(self, t_unit: Unit):
         if t_unit is None:
             return None
         
-        bullet = BasicBullet(self.x,self.y,t_unit,self.damage)
+        bullet = self.create_bullet(self.x,self.y,t_unit,self.damage)
         self.bullets.append(bullet)
         return bullet
     def _remove_finished_bullets(self):
@@ -406,20 +435,54 @@ class Tower:
         if fn is None:
             return
         self.pick_target = fn
+    
+    def change_bullet_type(self,bullet_type):
+        bullets = {
+            "basic":BasicBullet,
+            "rocket":RocketBullet,
+            "beam": BeamBullet,
+            "vine": VineBullet,
+            "fire": FireBullet,
+            "cluster": RocketClusterBullet,
+            }
+        self.create_bullet = bullets[bullet_type]
+
+    @property
+    def bullet_type(self):
+        if self.create_bullet is None:
+            return
+        bullet_class_name = self.create_bullet.__name__
+        class_to_Name_dict = {
+            "BasicBullet":"basic",
+            "FireBullet":"fire",
+            "BeamBullet":"beam",
+            "VineBullet":"vine",
+            "RocketBullet":"rocket",
+            "RocketClusterBullet":"cluster",
+        }
+        return class_to_Name_dict[bullet_class_name]
+    
+    def get_available_bullet_upgrades(self):
+        current_btype = self.bullet_type
+        upgrades = [b_op for b_op in self._bullet_options if b_op != current_btype]
+        return upgrades
 
 class BasicTower(Tower):
     def __init__(self, x,y):
         super().__init__("basic",x,y,200,1,3)
+        self.create_bullet = BasicBullet
+        self._bullet_options.extend(["basic","fire"])
 
 class RocketeerTower(Tower):
     def __init__(self,x,y):
         super().__init__("rocketeer",x,y,800,3,1)
+        self.create_bullet = RocketBullet
+        self._bullet_options.extend(["rocket","cluster"])
 
     def attack(self, t_unit: Unit):
         if t_unit is None:
             return None
-        
-        bullet = RocketBullet(self.x,self.y,t_unit,self.damage)
+        bullet = self.create_bullet(self.x,self.y,t_unit,self.damage)
         self.bullets.append(bullet)
         return bullet
 
@@ -427,18 +490,21 @@ class RocketeerTower(Tower):
 class BeamTower(Tower):
     def __init__(self,x,y):
         super().__init__("beam",x,y,300,1,4)
-
+        self.create_bullet = BeamBullet
+        self._bullet_options.extend(["beam"])
     def attack(self, t_unit: Unit):
         if t_unit is None:
             return None
         
-        bullet = BeamBullet(self.x,self.y,t_unit,self.damage)
+        bullet = self.create_bullet(self.x,self.y,t_unit,self.damage)
         self.bullets.append(bullet)
         return bullet
 
 class VineTower(Tower):
     def __init__(self,x,y):
         super().__init__("vine",x,y,300,1,1)
+        self.create_bullet = VineBullet
+        self._bullet_options.extend(["vine"])
         self.bullet_cap = 5
     def attack(self, t_unit: Unit):
         if len(self.bullets) >= self.bullet_cap:
@@ -448,20 +514,17 @@ class VineTower(Tower):
             if t_unit is None:
                 return None
         
-            bullet = VineBullet(self.x,self.y,t_unit,self.damage)
+            bullet = self.create_bullet(self.x,self.y,t_unit,self.damage)
             self.bullets.append(bullet)
             return bullet
         
     def update(self, dt, units: list[Unit]):
         current_targ: list[Unit] = []
-        print("XXXXXXXXXXXXXXXX")
         for b in self.bullets:
             current_targ.append(b.target)
-            print("BULLET TARGET F: ", b.target.finished)
-            print("BULLET F: ", b.finished)
+
         not_yet_target = [u for u in units if u not in current_targ]
-        print("CURRENT TARGET LEN: ", len(current_targ))
-        print("BULLET CAP: ", self.bullet_cap)
+
         return super().update(dt,not_yet_target)
 
 class Bullet:
@@ -501,11 +564,22 @@ class BasicBullet(Bullet):
     def __init__(self, x, y, target, damage):
         super().__init__("basic",x,y,400, damage, target)
 
+class FireBullet(Bullet):
+    def __init__(self, x, y, target, damage):
+        super().__init__("fire",x,y,400, damage, target)
+        self.fire_damage = 1
+
+    def _deal_dmg(self):
+        self.target.take_damage(self.damage)
+        self.target.add_fire_effect(self.fire_damage)
+
 class RocketBullet(Bullet):
     def __init__(self, x, y, target, damage):
         super().__init__("rocket",x,y,10, damage, target)
         self.acceleration = 1
         self.max_speed = 1500
+        self.t_x = x
+        self.t_y = y
 
     def update(self, dt, units: list[Unit]):
         def _pick_target_nearest():
@@ -542,7 +616,88 @@ class RocketBullet(Bullet):
         self.x += (dist_x/dist) * step
         self.y += (dist_y/dist) * step
 
+class MiniRocketClusterBullet(RocketBullet):
+    def __init__(self, x, y, target, damage, acceleration):
+        super().__init__(x,y,target,damage)
+        self.type="mini-cluster"
+        self.acceleration
 
+class RocketClusterBullet(RocketBullet):
+    def __init__(self, x, y, target, damage):
+        super().__init__(x,y,target,damage)
+        self.type = "cluster"
+        self.rocket_cluster = 5
+        self.age = 0
+        self.age_treshold = 0.33
+        self._mini_cluster_range = 200
+        self._mini_cluster_damage = 1
+
+    def update(self, dt, units: list[Unit]):
+        self.age += dt
+        def _pick_target_nearest():
+            closest_dist = math.inf
+            closest_unit = None
+            for u in units:
+                if u.finished:
+                    continue
+                dist = math.hypot(u.x-self.x,u.y-self.y)
+                if closest_dist > dist:
+                    closest_dist = dist
+                    closest_unit = u 
+
+            return closest_unit
+        if self.acceleration < 3:
+            self.acceleration += self.acceleration*dt/20
+        if self.target is not None and self.target.finished:
+            self.target = _pick_target_nearest()
+        if self.target is None:
+            self.finished = True
+            return
+        
+        if self.age > self.age_treshold:
+            cluster_bullets = self._deploy_cluster(units)
+            if cluster_bullets is None:
+                self.age = 0
+                return
+            self.finished = True
+            return cluster_bullets
+
+
+
+        self.acceleration += self.acceleration*dt/10  
+        speed = min((self.speed)**self.acceleration, self.max_speed)
+        dist_x = self.target.x - self.x
+        dist_y = self.target.y - self.y
+        dist = math.hypot(dist_x, dist_y)
+
+        if dist < 3:
+            self.x = self.target.x
+            self.y = self.target.y
+            self.finished = True
+            self._deal_dmg()
+            return
+
+        step = min(speed * dt, dist)
+        self.x += (dist_x/dist) * step
+        self.y += (dist_y/dist) * step
+    
+    def _deploy_cluster(self,units: list[Unit]):
+        in_dist = [u for u in units if math.hypot(u.x-self.x,u.y-self.y)<=self._mini_cluster_range]
+        b_count = 0
+        bullets = []
+        if len(in_dist) == 0:
+            return
+        while len(bullets) < 5:
+            for u in in_dist:
+                if b_count == 5:
+                    return bullets
+                bullets.append(MiniRocketClusterBullet(self.x,self.y,u,self._mini_cluster_damage,self.acceleration))
+                b_count += 1
+                
+        return bullets
+        
+
+    
 class BeamBullet(Bullet):
     def __init__(self, x, y, target, damage):
         super().__init__("rocket",x,y,50, damage, target)

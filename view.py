@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
 from PyQt6.QtGui import QPen, QColor, QBrush, QPainterPath
 from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem
-from engine import BeamBullet, Game, Unit,TowerSlot, VineBullet
+from engine import BeamBullet, Game, RocketBullet, Unit,TowerSlot, VineBullet
 import math
 unit_display_set = {
     "grunt": ["lime", 12],
@@ -13,7 +13,9 @@ tower_display_set = {
     "basic": "white",
     "rocketeer": "orange",
     "beam": "yellow",
-    "vine": "green"
+    "vine": "green",
+    "cluster": "black",
+    "mini-cluster": "black"
 }
 bullet_display_set = {
     "tier1": "white",
@@ -151,6 +153,13 @@ class GameView(QGraphicsView):
                 path.quadTo(cx, cy, ex, ey)
 
             return path
+        def _calc_rocket(bx, by, tx, ty, b_len):
+            dx = tx - bx 
+            dy = ty - by 
+            v_len = math.hypot(dx,dy)
+            ux = dx/v_len
+            uy = dy/v_len
+            return bx - ux * b_len, by - uy * b_len
          #1. remove bullet items that dont exist
         current_bullets = set(self.engine.bullets)
         to_remove = [b for b in self._bullet_items if b not in current_bullets]
@@ -182,6 +191,26 @@ class GameView(QGraphicsView):
                     item.setPen(pen)
                     self.scene.addItem(item)
                     self._bullet_items[bullet] = item
+
+                elif isinstance(bullet,RocketBullet):
+                    bul_dict = {
+                        "rocket": [2, 4, "red"],
+                        "cluster": [3, 6, "black"],
+                        "mini-cluster" : [2, 3, "black"]
+                    }
+                    bul_style = bul_dict[bullet.type]
+                    c = QColor(bul_style[2])
+                    c.setAlpha(180)
+                    w = bul_style[0]
+                    l = bul_style[1]
+
+
+                    r_x, r_y = _calc_rocket(bullet.x,bullet.y,bullet.t_x,bullet.t_y,l)
+                    item = QGraphicsLineItem(r_x,r_y,bullet.x,bullet.y)
+                    pen = QPen(c,2* w)
+                    item.setPen(pen)
+                    self.scene.addItem(item)
+                    self._bullet_items[bullet] = item
                 else: 
                     c = QColor("white")
                     r = 5
@@ -198,6 +227,10 @@ class GameView(QGraphicsView):
             elif isinstance(bullet, VineBullet):
                 path = _vine_path(bullet.x,bullet.y,bullet.t_x,bullet.t_y)
                 item.setPath(path)
+
+            elif isinstance(bullet,RocketBullet):
+                r_x, r_y = _calc_rocket(bullet.x,bullet.y,bullet.t_x,bullet.t_y,3)
+                item.setLine(r_x,r_y,bullet.x,bullet.y)
 
             else:
                 item.setPos(bullet.x, bullet.y)

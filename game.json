@@ -10,6 +10,14 @@
         "beam": 500,
         "vine": 800
       },
+      "bullet_costs":{
+        "basic": 50,
+        "fire": 500,
+        "rocket": 50,
+        "beam": 50,
+        "vine": 50,
+        "cluster": 600
+      },
       "kill_reward":{
         "grunt":5,
         "tank": 15,
@@ -41,9 +49,9 @@
         ]
       },
       "waves": [
-        { "delay_sec": 0, "count": 6, "type": "grunt", "interval_sec": 0.1 },
-        { "delay_sec": 1, "count": 15, "type": "tank", "interval_sec": 0.5 },
-        { "delay_sec": 6, "count": 10, "type": "fast", "interval_sec": 0.2 }
+        { "delay_sec": 0, "count": 30, "type": "grunt", "interval_sec": 0.05 },
+        { "delay_sec": 1, "count": 20, "type": "tank", "interval_sec": 0.1 },
+        { "delay_sec": 6, "count": 100, "type": "fast", "interval_sec": 0.1 }
       ]
     }
   ]

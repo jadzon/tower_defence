@@ -10,6 +10,7 @@ class EconomySpec:
     gold_generation: int
     sell_return_ratio: float
     tower_costs: dict[str,int]
+    bullet_costs: dict[str,int]
     kill_reward: dict[str,int]
 
 
@@ -83,6 +84,7 @@ def _parse_economy(raw: dict) ->EconomySpec:
         gold_generation = raw["gold_generation"],
         sell_return_ratio = raw["sell_return_ratio"],
         tower_costs = raw["tower_costs"],
+        bullet_costs = raw["bullet_costs"],
         kill_reward = raw["kill_reward"]
     )
 
