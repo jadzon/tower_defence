@@ -1,4 +1,5 @@
 import math
+from timeit import Timer
 from config import load_game_config
 
 class Game:
@@ -40,7 +41,8 @@ class Game:
         # self.place_tower(self.tower_slots[0],"basic")
         # self.place_tower(self.tower_slots[1],"rocketeer")
         self._place_tower(self.tower_slots[0],"beam")
-        self._place_tower(self.tower_slots[1],"rocketeer")
+        self._place_tower(self.tower_slots[1],"vine")
+        self._place_tower(self.tower_slots[2],"rocketeer")
 
     def tick(self,dt):
 
@@ -105,6 +107,10 @@ class Game:
             tower = RocketeerTower(tower_slot.x,tower_slot.y)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
+        elif tower_type == "vine":
+            tower = VineTower(tower_slot.x,tower_slot.y)
+            tower_slot.add_tower(tower)
+            self.towers.append(tower)
         else:
             tower = BeamTower(tower_slot.x,tower_slot.y)
             tower_slot.add_tower(tower)
@@ -126,6 +132,8 @@ class Game:
             return
         
         self.towers = [t for t in self.towers if t is not tower_slot.tower]
+        for b in tower_slot.tower.bullets:
+            b.finished = True
         gold = self.tower_costs[tower_slot.tower.tower_type] * self.tower_sell_return_ratio
         gold  = math.trunc(gold)
         self.gold += gold
@@ -203,6 +211,8 @@ class Unit:
         self.visited_nodes = [start_node]
         self.finished = False
         self.killed = False
+        self.slowed = False
+        self.slow_factor = 0.5
 
     def update(self,dt):
         if self.next_node is None or self.finished:
@@ -242,7 +252,13 @@ class Unit:
             self.killed = True
             self.finished = True
         
-        print(f"{self.unit_type} HP: {self.health}")
+        # print(f"{self.unit_type} HP: {self.health}")
+    
+    def add_slow_effect(self):
+        self.speed = math.trunc(self.speed * (1-self.slow_factor))
+        self.slowed = True
+
+
   
 
 class GruntUnit(Unit):
@@ -295,14 +311,17 @@ class Tower:
         self.fire_rate = fire_rate
         self.cooldown = 0.0
         self.pick_target = self._pick_target_nearest
+        self.bullets: list[Bullet] = []
     
     def attack(self, t_unit: Unit):
         if t_unit is None:
             return None
         
         bullet = BasicBullet(self.x,self.y,t_unit,self.damage)
+        self.bullets.append(bullet)
         return bullet
-
+    def _remove_finished_bullets(self):
+        self.bullets = [b for b in self.bullets if not b.finished]
     def choose_target(self,units):
         for u in units:
             if u.finished:
@@ -314,6 +333,7 @@ class Tower:
         return None
     
     def update(self, dt, units):
+        self._remove_finished_bullets()
         self.cooldown -= dt
         if self.cooldown > 0:
             return None
@@ -400,6 +420,7 @@ class RocketeerTower(Tower):
             return None
         
         bullet = RocketBullet(self.x,self.y,t_unit,self.damage)
+        self.bullets.append(bullet)
         return bullet
 
 
@@ -412,7 +433,36 @@ class BeamTower(Tower):
             return None
         
         bullet = BeamBullet(self.x,self.y,t_unit,self.damage)
+        self.bullets.append(bullet)
         return bullet
+
+class VineTower(Tower):
+    def __init__(self,x,y):
+        super().__init__("vine",x,y,300,1,1)
+        self.bullet_cap = 5
+    def attack(self, t_unit: Unit):
+        if len(self.bullets) >= self.bullet_cap:
+            return
+
+        else:
+            if t_unit is None:
+                return None
+        
+            bullet = VineBullet(self.x,self.y,t_unit,self.damage)
+            self.bullets.append(bullet)
+            return bullet
+        
+    def update(self, dt, units: list[Unit]):
+        current_targ: list[Unit] = []
+        print("XXXXXXXXXXXXXXXX")
+        for b in self.bullets:
+            current_targ.append(b.target)
+            print("BULLET TARGET F: ", b.target.finished)
+            print("BULLET F: ", b.finished)
+        not_yet_target = [u for u in units if u not in current_targ]
+        print("CURRENT TARGET LEN: ", len(current_targ))
+        print("BULLET CAP: ", self.bullet_cap)
+        return super().update(dt,not_yet_target)
 
 class Bullet:
     def __init__(self,type, x, y, speed, damage, target: Unit):
@@ -421,7 +471,7 @@ class Bullet:
         self.type = type
         self.speed = speed
         self.damage = damage
-        self.target = target
+        self.target: Unit = target
         self.finished = False
     
     def update(self, dt, units: list[Unit]):
@@ -546,4 +596,45 @@ class BeamBullet(Bullet):
                 if dist <= self.beam_radius:
                     dmg = _calculate_damage(dist)
                     u.take_damage(dmg )
+
+class VineBullet(Bullet):
+    def __init__(self, x, y, target, damage):
+        super().__init__("vine",x,y,10, damage, target)
+        self.acceleration = 1
+        self.max_speed = 1500
+        self.poison = 1
+        self.t_x = x
+        self.t_y = y
+        self.timer = 0
+    
+    def update(self, dt, units: list[Unit]):
+        
+        self.timer +=1
+        if self.target is None or self.target.finished:
+            self.finished = True
+            return
+        if self.acceleration < 20:
+            self.acceleration += self.acceleration*dt
+        speed = min((self.speed)**self.acceleration, self.max_speed)
+        dist_x = self.target.x - self.x
+        dist_y = self.target.y - self.y
+        dist = math.hypot(dist_x, dist_y)
+
+        if dist < 3:
+            self.x = self.target.x
+            self.y = self.target.y
+            if not self.target.slowed: 
+                self.target.add_slow_effect()
+            # self.finished = True
+            # self._deal_dmg()
+            return
+        
+        if self.timer == 60:
+            self._deal_dmg()
+
+        step = min(speed * dt, dist)
+        self.x += (dist_x/dist) * step
+        self.y += (dist_y/dist) * step
+        
+
                 

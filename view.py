@@ -1,8 +1,9 @@
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
-from PyQt6.QtGui import QPen, QColor, QBrush
-from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
-from engine import BeamBullet, Game, Unit,TowerSlot
+from PyQt6.QtGui import QPen, QColor, QBrush, QPainterPath
+from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem
+from engine import BeamBullet, Game, Unit,TowerSlot, VineBullet
+import math
 unit_display_set = {
     "grunt": ["lime", 12],
     "tank": ["red", 20],
@@ -11,7 +12,8 @@ unit_display_set = {
 tower_display_set = {
     "basic": "white",
     "rocketeer": "orange",
-    "beam": "yellow"
+    "beam": "yellow",
+    "vine": "green"
 }
 bullet_display_set = {
     "tier1": "white",
@@ -100,10 +102,6 @@ class GameView(QGraphicsView):
             item.setPos(tower.x, tower.y)
             
 
-        
-        
-        
-
     def sync_tower_slots(self):
         r = 15
         while len(self._tower_slots) < len(self.engine.tower_slots):
@@ -118,6 +116,41 @@ class GameView(QGraphicsView):
             item.setAcceptHoverEvents(True)
     
     def sync_bullets(self):
+
+        def _vine_path(b_x,b_y,b_t_x,b_t_y):
+            t = self.engine.elapsed
+            bend_fac = 0.22
+            n_seg = 5
+
+            dx = b_x - b_t_x
+            dy = b_y - b_t_y
+            dist = math.hypot(dx, dy)
+
+            path = QPainterPath()
+            path.moveTo(b_t_x, b_t_y)
+
+            if dist < 1e-6:
+                path.lineTo(b_x, b_y)
+                return path
+
+            perp_x = -dy / dist
+            perp_y = dx / dist
+            sag = bend_fac * dist
+            print (t)
+            for i in range(n_seg):
+                t0 = i / n_seg
+                t1 = (i + 1) / n_seg
+                tm = (t0 + t1) / 2
+                env = math.sin(math.pi * tm) ** 1.15
+                wobble = 0.85 + 0.15 * (math.sin(t * 3.2 + i) * math.cos(t * 2.1))
+                amp = sag * env * wobble
+                cx = b_t_x + dx * tm + perp_x * amp
+                cy = b_t_y + dy * tm + perp_y * amp
+                ex = b_t_x + dx * t1
+                ey = b_t_y + dy * t1
+                path.quadTo(cx, cy, ex, ey)
+
+            return path
          #1. remove bullet items that dont exist
         current_bullets = set(self.engine.bullets)
         to_remove = [b for b in self._bullet_items if b not in current_bullets]
@@ -137,7 +170,18 @@ class GameView(QGraphicsView):
                     self.scene.addItem(item)
                     self._bullet_items[bullet] = item
 
-
+                elif isinstance(bullet,VineBullet):
+                    # parab
+                
+                    path = _vine_path(bullet.x,bullet.y,bullet.t_x,bullet.t_y)
+                    rad = 3
+                    c = QColor("green")
+                    c.setAlpha(180)
+                    item = QGraphicsPathItem(path)
+                    pen = QPen(c,2* rad)
+                    item.setPen(pen)
+                    self.scene.addItem(item)
+                    self._bullet_items[bullet] = item
                 else: 
                     c = QColor("white")
                     r = 5
@@ -151,6 +195,10 @@ class GameView(QGraphicsView):
             item = self._bullet_items[bullet]
             if isinstance(bullet,BeamBullet):
                 item.setLine(bullet.t_x, bullet.t_y, bullet.x, bullet.y)
+            elif isinstance(bullet, VineBullet):
+                path = _vine_path(bullet.x,bullet.y,bullet.t_x,bullet.t_y)
+                item.setPath(path)
+
             else:
                 item.setPos(bullet.x, bullet.y)
     
