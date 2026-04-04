@@ -59,6 +59,17 @@ class GameView(QGraphicsView):
                 drawn.add(key)
                 self.scene.addLine(x1, y1, neighbor.x, neighbor.y, pen)
                 print(f"Drawing {neighbor}")
+            
+        r = 8  # promień „małego kółka”
+        start = self.engine.first_node
+        goal = self.engine.last_node
+        nc = QColor("red")
+        for node in [start,goal]:
+            c = QGraphicsEllipseItem(-r, -r, 2 * r, 2 * r)
+            c.setBrush(QBrush(nc))
+            c.setPen(QPen(Qt.PenStyle.NoPen))
+            c.setPos(node.x, node.y)
+            self.scene.addItem(c)
     
 
     def sync_units(self):
