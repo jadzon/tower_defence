@@ -1,5 +1,6 @@
 from __future__ import annotations
 import math
+from platform import node
 from timeit import Timer
 from xxlimited import new
 
@@ -122,19 +123,19 @@ class Game:
         if tower_slot.occupied:
             return
         if tower_type == "basic":
-            tower = BasicTower(tower_slot.x,tower_slot.y)
+            tower = BasicTower(tower_slot.x,tower_slot.y, self.last_node)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
         elif tower_type == "rocketeer":
-            tower = RocketeerTower(tower_slot.x,tower_slot.y)
+            tower = RocketeerTower(tower_slot.x,tower_slot.y,self.last_node)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
         elif tower_type == "vine":
-            tower = VineTower(tower_slot.x,tower_slot.y)
+            tower = VineTower(tower_slot.x,tower_slot.y,self.last_node)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
         else:
-            tower = BeamTower(tower_slot.x,tower_slot.y)
+            tower = BeamTower(tower_slot.x,tower_slot.y,self.last_node)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
     
@@ -403,7 +404,7 @@ class UpgradeSpec:
         self.cost = cost
 
 class Tower:
-    def __init__(self,tower_type,x,y,range,damage,fire_rate):
+    def __init__(self,tower_type,x,y,range,damage,fire_rate, last_node:Node):
         self.tower_type = tower_type
         self.x = x
         self.y = y
@@ -415,6 +416,7 @@ class Tower:
         self.bullets: list[Bullet] = []
         self.create_bullet = BasicBullet
         self._bullet_options = []
+        self.last_node: Node= last_node
     
     def attack(self, t_unit: Unit):
         if t_unit is None:
@@ -496,7 +498,20 @@ class Tower:
                 unit_highest_hp = u 
 
         return unit_highest_hp
-    
+    def _pick_target_furthest(self,units):
+        furthest_dist = 0.0
+        furthest_unit = None
+        for u in units:
+            if u.finished:
+                continue
+            dist = math.hypot(u.x-self.x,u.y-self.y)
+            if dist > self.range:
+                continue
+            if furthest_dist < dist:
+                furthest_dist = dist
+                furthest_unit = u 
+
+        return furthest_unit
 
     def change_targeting_strategy(self, strategy: str) -> None:
 
@@ -504,6 +519,7 @@ class Tower:
             "nearest": self._pick_target_nearest,
             "weakest": self._pick_target_lowest_hp,
             "strongest": self._pick_target_highest_hp,
+            "furthest": self._pick_target_furthest
         }
         fn = mapping.get(strategy)
         if fn is None:
@@ -628,15 +644,15 @@ class Tower:
 
 
 class BasicTower(Tower):
-    def __init__(self, x,y):
-        super().__init__("basic",x,y,200,1,3)
+    def __init__(self, x,y,last_node:Node):
+        super().__init__("basic",x,y,200,1,3,last_node)
         self.create_bullet = BasicBullet
         self._bullet_options.extend(["basic","fire"])
 
 
 class RocketeerTower(Tower):
-    def __init__(self,x,y):
-        super().__init__("rocketeer",x,y,800,3,1)
+    def __init__(self,x,y, last_node: Node):
+        super().__init__("rocketeer",x,y,800,3,1,last_node)
         self.create_bullet = RocketBullet
         self.rocket_cluster_size = 2
         self._bullet_options.extend(["rocket","cluster"])
@@ -662,8 +678,8 @@ class RocketeerTower(Tower):
 
 
 class BeamTower(Tower):
-    def __init__(self,x,y):
-        super().__init__("beam",x,y,300,1,4)
+    def __init__(self,x,y,last_node:Node):
+        super().__init__("beam",x,y,300,1,4,last_node)
         self.create_bullet = BeamBullet
         self._bullet_options.extend(["beam"])
         self.beam_radius = 1
@@ -694,8 +710,8 @@ class BeamTower(Tower):
             self.beam_radius += math.trunc(self.beam_radius * 0.2) 
 
 class VineTower(Tower):
-    def __init__(self,x,y):
-        super().__init__("vine",x,y,300,1,1)
+    def __init__(self,x,y,last_node: Node):
+        super().__init__("vine",x,y,300,1,1,last_node)
         self.create_bullet = VineBullet
         self._bullet_options.extend(["vine", "spread-vine"])
         self.vine_count = 1

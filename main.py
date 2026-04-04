@@ -114,6 +114,7 @@ class MainWindow(QMainWindow):
                 "nearest",
                 "weakest",
                 "strongest",
+                "furthest"
             ):
                 a = QAction(key, self)
                 a.setData(("target", key))

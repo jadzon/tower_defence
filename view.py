@@ -277,6 +277,8 @@ class GameView(QGraphicsView):
         ]
         if tower.pick_target == tower._pick_target_nearest:
             lines.append("T: nea")
+        elif tower.pick_target == tower._pick_target_furthest:
+            lines.append("T: fur")
         elif tower.pick_target == tower._pick_target_lowest_hp:
             lines.append("T: wea")
         elif tower.pick_target == tower._pick_target_highest_hp:
