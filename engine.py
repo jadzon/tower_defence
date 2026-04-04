@@ -1,8 +1,6 @@
 from __future__ import annotations
 import math
-from platform import node
-from timeit import Timer
-from xxlimited import new
+import random
 
 from config import load_game_config
 
@@ -336,9 +334,9 @@ class Unit:
 
     def _choose_next_node(self) -> Node | None:
         neighbors = self.current_node.neighbors
-        for n in neighbors:
-            if n not in self.visited_nodes:
-                return n
+        not_visited = [n for n in neighbors if n not in self.visited_nodes]
+        if len(not_visited)>0:
+            return random.choice(not_visited)
         if self.current_node != self.goal_node:
             self.visited_nodes = [self.current_node]
         else:
