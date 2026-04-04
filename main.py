@@ -2,7 +2,7 @@ import sys
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QVBoxLayout, QWidget,QPushButton, QMenu
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QCursor, QAction
-from engine import Game, TowerSlot
+from engine import Game, TowerSlot, UpgradeSpec
 from view import GameView
 import math
 
@@ -90,12 +90,17 @@ class MainWindow(QMainWindow):
                 strategy_menu.addAction(a)
             menu.addMenu(strategy_menu)
             upgrade_menu = QMenu("upgrade",self)
-            for bullet_key in tower.get_available_bullet_upgrades():
-                cost = self.engine.get_bullet_change_cost(tower,bullet_key)
-                label = f"Bullet → {bullet_key}, {cost} gold" 
+            for spec in tower.possible_upgrades():
+                cost = self.engine.upgrade_cost(tower, spec)
+                if cost is None:
+                    cost = 0
+                label = f"{spec.type}: {spec.label}  ({cost} gold)"
                 act = QAction(label, self)
-                act.setData(("upgrade", "bullet", bullet_key))
+                act.setData(spec)
+                act.setEnabled(cost <= self.engine.gold)
                 upgrade_menu.addAction(act)
+                if upgrade_menu.actions():
+                    menu.addMenu(upgrade_menu)
             if upgrade_menu.actions():
                 menu.addMenu(upgrade_menu)
             chosen = menu.exec(QCursor.pos())
@@ -107,8 +112,8 @@ class MainWindow(QMainWindow):
                 return
             elif isinstance(data, tuple) and len(data) == 2 and data[0] == "target":
                 tower.change_targeting_strategy(data[1])
-            elif isinstance(data, tuple) and len(data) == 3 and data[0] == "upgrade" and data[1] == "bullet":
-                tower.change_bullet_type(data[2])
+            elif isinstance(data, UpgradeSpec):
+                self.engine.apply_upgrade(tower, data)
 
 
 

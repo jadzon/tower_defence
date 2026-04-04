@@ -1,5 +1,7 @@
+from __future__ import annotations
 import math
 from timeit import Timer
+
 from config import load_game_config
 
 class Game:
@@ -39,6 +41,16 @@ class Game:
         self.tower_costs: dict[str,int] = cfg.economy.tower_costs
         self.bullet_costs: dict[str,int] = cfg.economy.bullet_costs
         self.tower_sell_return_ratio: float = cfg.economy.sell_return_ratio
+        self.stat_upgrade_costs: dict[str, int] = {
+            "damage": 100,
+            "range": 100,
+            "fire-rate": 100,
+        }
+        self.class_spec_upgrade_costs: dict[str, int] = {
+            "beam": 150,
+            "vine": 200,
+            "cluster-size":200
+        }
         # self.place_tower(self.tower_slots[0],"basic")
         # self.place_tower(self.tower_slots[1],"rocketeer")
         self._place_tower(self.tower_slots[0],"beam")
@@ -181,6 +193,54 @@ class Game:
         if cost < 0:
             cost = math.trunc(cost * self.tower_sell_return_ratio)
         return cost
+    def possible_upgrades(self,tower: Tower):
+        return tower.possible_upgrades()
+    
+    def upgrade_cost(self,tower: Tower, upgrade: UpgradeSpec):
+        if upgrade.kind == "bullet":
+            basic_cost = self.get_bullet_change_cost(tower,upgrade.type)
+            return basic_cost
+        elif upgrade.kind == "stat":
+            basic_cost = self.stat_upgrade_costs[upgrade.type]
+            return basic_cost
+        elif upgrade.kind =="class-spec":
+            basic_cost = self.class_spec_upgrade_costs[upgrade.type]
+            return basic_cost
+
+
+    def apply_upgrade(self,tower: Tower,upgrade: UpgradeSpec):
+        cost = self.upgrade_cost(tower,upgrade)
+        if cost is None:
+            return
+        if cost > self.gold:
+            return
+        
+        self.gold -= cost
+        if upgrade.kind == "stat":
+            if upgrade.type == "damage":
+                tower.upgrade_damage()
+            elif upgrade.type == "range":
+                tower.upgrade_range()
+            elif upgrade.type == "fire-rate":
+                tower.upgrade_fire_rate()
+            else:
+                self.gold += cost
+                return 
+        elif upgrade.kind == "bullet":
+            tower.change_bullet_type(upgrade.type)
+        elif upgrade.kind == "class-spec":
+            if upgrade.type == "beam" and isinstance(tower, BeamTower):
+                tower.upgrade_beam_radius()
+            elif upgrade.type == "vine" and isinstance(tower, VineTower):
+                tower.vine_count += 1
+            elif upgrade.type == "cluster-size"  and isinstance(tower, RocketeerTower):
+                tower.rocket_cluster_size +=1
+            else:
+                self.gold += cost
+                return 
+        return
+
+        
 
 class Node:
 
@@ -327,6 +387,13 @@ class TowerSlot:
     def remove_tower(self):
         self.tower = None
 
+class UpgradeSpec:
+    def __init__(self, kind, type, label, count,cost=0):
+        self.kind = kind
+        self.type = type
+        self.label = label
+        self.count = count
+        self.cost = cost
 
 class Tower:
     def __init__(self,tower_type,x,y,range,damage,fire_rate):
@@ -466,6 +533,90 @@ class Tower:
         current_btype = self.bullet_type
         upgrades = [b_op for b_op in self._bullet_options if b_op != current_btype]
         return upgrades
+    
+    def upgrade_damage(self):
+        if math.trunc(self.damage * 0.2) == 0:
+            self.damage = self.damage + 1
+        else:
+            self.damage = math.trunc(self.damage * 1.2)
+    def upgrade_range(self):
+        self.range = math.trunc(self.range * 1.2)
+
+    def upgrade_fire_rate(self):
+        self.fire_rate = self.fire_rate * 1.2
+
+    def get_stats(self):
+        return {
+            "type": self.tower_type,
+            "damage": self.damage,
+            "fire_rate": self.fire_rate,
+            "range": self.range,
+        }
+    @property
+    def _spec_damage(self) -> UpgradeSpec:
+        def _calc_damage():
+            if math.trunc(self.damage * 0.2) == 0:
+                return self.damage + 1
+            else:
+                return self.damage * 1.2
+        def _calc_cost():
+            print("TODO")
+
+        return UpgradeSpec(
+            kind = "stat",
+            type = "damage",
+            label= f"cur: {self.damage}, up: +{_calc_damage()-self.damage}",
+            count = 0
+        )
+    @property
+    def _spec_range(self) -> UpgradeSpec:
+        def _calc_cost():
+            print("TODO")
+
+        return UpgradeSpec(
+            kind = "stat",
+            type = "range",
+            label = f"cur: {self.range}, up: +{self.range * 0.2}",
+            count = 0
+        )
+    @property
+    def _spec_fire_rate(self) -> UpgradeSpec:
+        def _calc_cost():
+            print("TODO")
+
+        return UpgradeSpec(
+            kind = "stat",
+            type = "fire-rate",
+            label = f"cur: {self.fire_rate}, up: +{self.fire_rate * 0.2}",
+            count = 0
+        )
+    
+    def _get_bullet_specs(self)-> list[UpgradeSpec] | None:
+        upgrades: list[UpgradeSpec] = []
+        for b_type in self.get_available_bullet_upgrades():
+            up = UpgradeSpec(
+                kind = "bullet",
+                type = b_type,
+                label = f"{self.bullet_type} -> {b_type}",
+                cost = 100,
+                count=0
+            )
+
+    def possible_upgrades(self):
+        u = []
+        u.append(self._spec_damage)
+        u.append(self._spec_range)
+        u.append(self._spec_fire_rate)
+        for b_type in self.get_available_bullet_upgrades():
+            upd = UpgradeSpec(
+                kind = "bullet",
+                type = b_type,
+                label = f"{self.bullet_type} -> {b_type}",
+                count = 0
+            )
+            u.append(upd)
+        return u
+
 
 class BasicTower(Tower):
     def __init__(self, x,y):
@@ -473,18 +624,32 @@ class BasicTower(Tower):
         self.create_bullet = BasicBullet
         self._bullet_options.extend(["basic","fire"])
 
+
 class RocketeerTower(Tower):
     def __init__(self,x,y):
         super().__init__("rocketeer",x,y,800,3,1)
         self.create_bullet = RocketBullet
+        self.rocket_cluster_size = 2
         self._bullet_options.extend(["rocket","cluster"])
 
     def attack(self, t_unit: Unit):
         if t_unit is None:
             return None
-        bullet = self.create_bullet(self.x,self.y,t_unit,self.damage)
+        bullet = self.create_bullet(self.x,self.y,t_unit,self.damage,self.rocket_cluster_size)
         self.bullets.append(bullet)
         return bullet
+    
+    def possible_upgrades(self):
+        u = super().possible_upgrades()
+        upd = UpgradeSpec(
+            kind = "class-spec",
+            type = "cluster-size",
+            label = f"cluster size {self.rocket_cluster_size} -> {self.rocket_cluster_size + 1}",
+            count=0
+
+        )
+        u.append(upd)
+        return u
 
 
 class BeamTower(Tower):
@@ -492,22 +657,42 @@ class BeamTower(Tower):
         super().__init__("beam",x,y,300,1,4)
         self.create_bullet = BeamBullet
         self._bullet_options.extend(["beam"])
+        self.beam_radius = 1
     def attack(self, t_unit: Unit):
         if t_unit is None:
             return None
         
-        bullet = self.create_bullet(self.x,self.y,t_unit,self.damage)
+        bullet = self.create_bullet(self.x,self.y,t_unit,self.damage,self.beam_radius)
         self.bullets.append(bullet)
         return bullet
+    
+    def possible_upgrades(self):
+        u = super().possible_upgrades()
+        upd = UpgradeSpec(
+            kind = "class-spec",
+            type = "beam",
+            label = f"beam rad {self.beam_radius} -> {self.beam_radius*1.2}",
+            count=0
+
+        )
+        u.append(upd)
+        return u
+    
+    def upgrade_beam_radius(self):
+        if math.trunc(self.beam_radius * 0.2) <1:
+            self.beam_radius +=1
+        else:
+            self.beam_radius += math.trunc(self.beam_radius * 0.2)
+    
 
 class VineTower(Tower):
     def __init__(self,x,y):
         super().__init__("vine",x,y,300,1,1)
         self.create_bullet = VineBullet
         self._bullet_options.extend(["vine"])
-        self.bullet_cap = 5
+        self.vine_count = 1
     def attack(self, t_unit: Unit):
-        if len(self.bullets) >= self.bullet_cap:
+        if len(self.bullets) >= self.vine_count:
             return
 
         else:
@@ -526,6 +711,18 @@ class VineTower(Tower):
         not_yet_target = [u for u in units if u not in current_targ]
 
         return super().update(dt,not_yet_target)
+    
+    def possible_upgrades(self):
+        u = super().possible_upgrades()
+        upd = UpgradeSpec(
+            kind = "class-spec",
+            type = "vine",
+            label = f"vine count {self.vine_count} -> {self.vine_count + 1}",
+            count=0
+
+        )
+        u.append(upd)
+        return u
 
 class Bullet:
     def __init__(self,type, x, y, speed, damage, target: Unit):
@@ -574,12 +771,13 @@ class FireBullet(Bullet):
         self.target.add_fire_effect(self.fire_damage)
 
 class RocketBullet(Bullet):
-    def __init__(self, x, y, target, damage):
+    def __init__(self, x, y, target, damage, rocket_cluster_size=2):
         super().__init__("rocket",x,y,10, damage, target)
         self.acceleration = 1
         self.max_speed = 1500
         self.t_x = x
         self.t_y = y
+        self.rocket_cluster_size = rocket_cluster_size
 
     def update(self, dt, units: list[Unit]):
         def _pick_target_nearest():
@@ -617,16 +815,15 @@ class RocketBullet(Bullet):
         self.y += (dist_y/dist) * step
 
 class MiniRocketClusterBullet(RocketBullet):
-    def __init__(self, x, y, target, damage, acceleration):
-        super().__init__(x,y,target,damage)
+    def __init__(self, x, y, target, damage,rocket_cluster_size, acceleration):
+        super().__init__(x,y,target,damage,rocket_cluster_size)
         self.type="mini-cluster"
-        self.acceleration
+        self.acceleration = acceleration
 
 class RocketClusterBullet(RocketBullet):
-    def __init__(self, x, y, target, damage):
-        super().__init__(x,y,target,damage)
+    def __init__(self, x, y, target, damage,rocket_cluster_size):
+        super().__init__(x,y,target,damage,rocket_cluster_size)
         self.type = "cluster"
-        self.rocket_cluster = 5
         self.age = 0
         self.age_treshold = 0.33
         self._mini_cluster_range = 200
@@ -687,21 +884,22 @@ class RocketClusterBullet(RocketBullet):
         bullets = []
         if len(in_dist) == 0:
             return
-        while len(bullets) < 5:
+        while len(bullets) < self.rocket_cluster_size:
             for u in in_dist:
-                if b_count == 5:
+                if b_count == self.rocket_cluster_size:
                     return bullets
-                bullets.append(MiniRocketClusterBullet(self.x,self.y,u,self._mini_cluster_damage,self.acceleration))
+                bullets.append(MiniRocketClusterBullet(self.x,self.y,u,self._mini_cluster_damage,1,self.acceleration))
                 b_count += 1
                 
         return bullets
+    
         
 
     
 class BeamBullet(Bullet):
-    def __init__(self, x, y, target, damage):
-        super().__init__("rocket",x,y,50, damage, target)
-        self.beam_radius = 1
+    def __init__(self, x, y, target, damage, radius):
+        super().__init__("beam",x,y,50, damage, target)
+        self.beam_radius = radius
         self.t_x = x
         self.t_y = y
         self.beam_decay = 0.5
