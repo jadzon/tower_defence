@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("game")
         self.showFullScreen()
         self.control_panel.pause_clicked.connect(self._toggle_pause)
-        
+
         self._on_game_tick()
         self._toggle_pause()
         
@@ -70,8 +70,9 @@ class MainWindow(QMainWindow):
         self.engine.tick(dt)
         self.game_view.sync_tower_slots()
         self.game_view.sync_towers()
-        self.game_view.sync_bullets()
-        self.game_view.sync_units()
+        if not self._paused:
+            self.game_view.sync_bullets()
+            self.game_view.sync_units()
         self.control_panel.set_gold(self.engine.gold)
     def _toggle_pause(self) -> None:
         self._paused = not self._paused
@@ -138,11 +139,14 @@ class MainWindow(QMainWindow):
             data = chosen.data()
             if data == "sell":
                 self.engine.sell_tower(slot)
+                self._on_game_tick()
                 return
             elif isinstance(data, tuple) and len(data) == 2 and data[0] == "target":
                 tower.change_targeting_strategy(data[1])
             elif isinstance(data, UpgradeSpec):
                 self.engine.apply_upgrade(tower, data)
+            
+        self._on_game_tick()
 
 
 

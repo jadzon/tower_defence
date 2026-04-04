@@ -16,7 +16,8 @@
         "rocket": 50,
         "beam": 50,
         "vine": 50,
-        "cluster": 600
+        "cluster": 600,
+        "spread-vine": 900
       },
       "kill_reward":{
         "grunt":5,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 import math
 from timeit import Timer
+from xxlimited import new
 
 from config import load_game_config
 
@@ -517,6 +518,7 @@ class Tower:
             "vine": VineBullet,
             "fire": FireBullet,
             "cluster": RocketClusterBullet,
+            "spread-vine": SpreadVineBullet
             }
         self.create_bullet = bullets[bullet_type]
 
@@ -530,6 +532,7 @@ class Tower:
             "FireBullet":"fire",
             "BeamBullet":"beam",
             "VineBullet":"vine",
+            "SpreadVineBullet":"spread-vine",
             "RocketBullet":"rocket",
             "RocketClusterBullet":"cluster",
         }
@@ -688,14 +691,13 @@ class BeamTower(Tower):
         if math.trunc(self.beam_radius * 0.2) <1:
             self.beam_radius +=1
         else:
-            self.beam_radius += math.trunc(self.beam_radius * 0.2)
-    
+            self.beam_radius += math.trunc(self.beam_radius * 0.2) 
 
 class VineTower(Tower):
     def __init__(self,x,y):
         super().__init__("vine",x,y,300,1,1)
         self.create_bullet = VineBullet
-        self._bullet_options.extend(["vine"])
+        self._bullet_options.extend(["vine", "spread-vine"])
         self.vine_count = 1
     def attack(self, t_unit: Unit):
         if len(self.bullets) >= self.vine_count:
@@ -779,7 +781,7 @@ class FireBullet(Bullet):
 class RocketBullet(Bullet):
     def __init__(self, x, y, target, damage, rocket_cluster_size=2):
         super().__init__("rocket",x,y,10, damage, target)
-        self.acceleration = 1
+        self.acceleration = 1.8
         self.max_speed = 1500
         self.t_x = x
         self.t_y = y
@@ -900,8 +902,6 @@ class RocketClusterBullet(RocketBullet):
         return bullets
     
         
-
-    
 class BeamBullet(Bullet):
     def __init__(self, x, y, target, damage, radius):
         super().__init__("beam",x,y,50, damage, target)
@@ -954,7 +954,7 @@ class BeamBullet(Bullet):
                 dist = abs(-a *u.x +u.y-b)/(a**2+1)
                 if dist <= self.beam_radius:
                     dmg = _calculate_damage(dist)
-                    u.take_damage(dmg )
+                    u.take_damage(dmg)
 
 class VineBullet(Bullet):
     def __init__(self, x, y, target, damage):
@@ -994,6 +994,70 @@ class VineBullet(Bullet):
         step = min(speed * dt, dist)
         self.x += (dist_x/dist) * step
         self.y += (dist_y/dist) * step
+
+class SpreadVineBullet(VineBullet):
+
+    def __init__(self, x, y, target, damage):
+        super().__init__(x, y, target, damage)
+        self.type = "spread-vine"
+        self.targets:list[Unit] = [target]
+        self.target_cap = 3
+    def update(self, dt, units: list[Unit]):
+
+        def _pick_target_nearest(t_units):
+            closest_dist = math.inf
+            closest_unit = None
+            for u in t_units:
+                if u.finished:
+                    continue
+                dist = math.hypot(u.x-self.x,u.y-self.y)
+                if closest_dist > dist:
+                    closest_dist = dist
+                    closest_unit = u 
+
+            return closest_unit
         
+        self.timer += 1
+
+        if self.targets is None:
+            self.finished = True
+            return
+        self.targets = [t for t in self.targets if not t.finished]
+
+        if len(self.targets) == 0:
+            self.finished = True
+            return
+        
+        if len(self.targets) >= self.target_cap:
+            return
+
+        if self.acceleration < 20:
+            self.acceleration += self.acceleration*dt
+
+        speed = min((self.speed)**self.acceleration, self.max_speed)
+        dist_x = self.target.x - self.x
+        dist_y = self.target.y - self.y
+        dist = math.hypot(dist_x, dist_y)
+
+        if dist < 3:
+            self.x = self.target.x
+            self.y = self.target.y
+            if not self.target.slowed: 
+                self.target.add_slow_effect()
+            
+            new_target = _pick_target_nearest([t for t in units if t not in self.targets])
+            if new_target is None:
+                return
+            self.targets.append(new_target)
+            # self.finished = True
+            # self._deal_dmg()
+            return
+        
+        if self.timer == 60:
+            self._deal_dmg()
+
+        step = min(speed * dt, dist)
+        self.x += (dist_x/dist) * step
+        self.y += (dist_y/dist) * step
 
                 

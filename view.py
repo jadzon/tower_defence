@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
 from PyQt6.QtGui import QPen, QColor, QBrush, QPainterPath
 from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsTextItem
-from engine import BeamBullet, Game, RocketBullet, Unit,TowerSlot, VineBullet
+from engine import BeamBullet, Game, RocketBullet, Unit,TowerSlot, VineBullet, SpreadVineBullet
 import math
 unit_display_set = {
     "grunt": ["lime", 12],
@@ -237,6 +237,15 @@ class GameView(QGraphicsView):
             item = self._bullet_items[bullet]
             if isinstance(bullet,BeamBullet):
                 item.setLine(bullet.t_x, bullet.t_y, bullet.x, bullet.y)
+
+            elif isinstance(bullet, SpreadVineBullet):
+                combined = QPainterPath()
+                combined.addPath(_vine_path(bullet.x, bullet.y, bullet.t_x, bullet.t_y))
+                for u in bullet.targets:
+                    if u.finished:
+                        continue
+                    combined.addPath(_vine_path(u.x, u.y, bullet.x, bullet.y))
+                item.setPath(combined)
             elif isinstance(bullet, VineBullet):
                 path = _vine_path(bullet.x,bullet.y,bullet.t_x,bullet.t_y)
                 item.setPath(path)
