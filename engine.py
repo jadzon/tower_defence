@@ -911,7 +911,8 @@ class RocketBullet(Bullet):
         if self.target is None:
             self.finished = True
             return
-        self.acceleration += self.acceleration*dt
+        if self.acceleration < 5:
+            self.acceleration += self.acceleration*dt
         speed = min((self.speed)**self.acceleration, self.max_speed)
         dist_x = self.target.x - self.x
         dist_y = self.target.y - self.y

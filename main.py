@@ -5,18 +5,32 @@ from PyQt6.QtGui import QCursor, QAction
 from engine import Game, TowerSlot, UpgradeSpec
 from view import GameView
 import math
-
+_SPEED_LEVELS = (1, 2, 5, 10)
 class ControlPanel(QWidget):
     pause_clicked = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        lay = QVBoxLayout(self)
+        v_lay = QVBoxLayout(self)
+        h_lay = QHBoxLayout()
+        self._speed_idx = 0
         self._gold = QLabel("Gold")
-        self._btn = QPushButton("||")
-        self._btn.clicked.connect(self.pause_clicked.emit)
-        lay.addWidget(self._gold)
-        lay.addWidget(self._btn)
+        self._pause_btn = QPushButton("||")
+        self._speed_btn = QPushButton("x1")
+        self._pause_btn.clicked.connect(self.pause_clicked.emit)
+        self._speed_btn.clicked.connect(self._cycle_speed)
+        v_lay.addWidget(self._gold)
+        h_lay.addWidget(self._pause_btn)
+        h_lay.addWidget(self._speed_btn)
+        v_lay.addLayout(h_lay)
+
+    def speed_multiplier(self) -> int:
+        return _SPEED_LEVELS[self._speed_idx]
+    
+    def _cycle_speed(self) -> None:
+        self._speed_idx = (self._speed_idx + 1) % len(_SPEED_LEVELS)
+        m = _SPEED_LEVELS[self._speed_idx]
+        self._speed_btn.setText(f"x{m}")
     
     def set_gold(self, n: int) -> None:
         self._gold.setText(f"Gold: {n}")
@@ -66,7 +80,7 @@ class MainWindow(QMainWindow):
         
     
     def _on_game_tick(self):
-        dt = self._tick_ms / 1000.0
+        dt = self._tick_ms / 1000.0 * self.control_panel.speed_multiplier()
         self.engine.tick(dt)
         self.game_view.sync_tower_slots()
         self.game_view.sync_towers()
