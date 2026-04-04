@@ -358,7 +358,7 @@ class Unit:
         self.burning = True
         self.burning_damage = damage
         self.burning_timer = 0
-        self.nurn_last_hi = 0
+        self.burn_last_hi = 0
     
     def add_poison_effect(self, damage):
         self.poisoned = True
@@ -689,14 +689,14 @@ class Tower:
 
 class BasicTower(Tower):
     def __init__(self, x,y,last_node:Node):
-        super().__init__("basic",x,y,200,1,3,last_node)
+        super().__init__("basic",x,y,90,1,3,last_node)
         self.create_bullet = BasicBullet
         self._bullet_options.extend(["basic","fire","poison"])
 
 
 class RocketeerTower(Tower):
     def __init__(self,x,y, last_node: Node):
-        super().__init__("rocketeer",x,y,800,3,1,last_node)
+        super().__init__("rocketeer",x,y,170,3,1,last_node)
         self.create_bullet = RocketBullet
         self.rocket_cluster_size = 2
         self._bullet_options.extend(["rocket","cluster"])
@@ -723,7 +723,7 @@ class RocketeerTower(Tower):
 
 class BeamTower(Tower):
     def __init__(self,x,y,last_node:Node):
-        super().__init__("beam",x,y,300,1,4,last_node)
+        super().__init__("beam",x,y,100,1,4,last_node)
         self.create_bullet = BeamBullet
         self._bullet_options.extend(["beam"])
         self.beam_radius = 1
@@ -755,7 +755,7 @@ class BeamTower(Tower):
 
 class VineTower(Tower):
     def __init__(self,x,y,last_node: Node):
-        super().__init__("vine",x,y,300,1,1,last_node)
+        super().__init__("vine",x,y,120,1,1,last_node)
         self.create_bullet = VineBullet
         self._bullet_options.extend(["vine", "spread-vine"])
         self.vine_count = 1

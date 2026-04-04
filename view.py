@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QMainWindow
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
 from PyQt6.QtGui import QPen, QColor, QBrush, QPainterPath
 from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsTextItem
-from engine import BeamBullet, FireBullet, Game, PoisonBullet, RocketBullet, Unit,TowerSlot, VineBullet, SpreadVineBullet
+from engine import Tower, BeamBullet, FireBullet, Game, PoisonBullet, RocketBullet, Unit,TowerSlot, VineBullet, SpreadVineBullet
 import math
 unit_display_set = {
     "grunt": ["lime", 12],
@@ -36,10 +36,12 @@ class GameView(QGraphicsView):
 
         self._unit_items = {}
         self._towers = []
+        self._tower_ranges= []
         self._tower_labels = []
         self._tower_slots= []
         self._radius = 12
         self._bullet_items = {}
+        self._menu_range_tower: Tower | None = None
     
     def setFullScreen(self,event):
         self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
@@ -101,21 +103,34 @@ class GameView(QGraphicsView):
                 label.setFont(font)
                 self.scene.addItem(label)
                 self._tower_labels.append(label)
-
+                t_range = QGraphicsEllipseItem(-1, -1, 2 * 1, 2 * 1)
+                t_range.setPen(QPen(QColor(255, 220, 0, 180), 2))
+                t_range.setBrush(QBrush(QColor(255, 255, 0, 25)))
+                t_range.setZValue(-5)
+                t_range.setVisible(False)
+                self.scene.addItem(t_range)
+                self._tower_ranges.append(t_range)
         if len(self._towers) > len(self.engine.towers):
             while self._towers:
                 self.scene.removeItem(self._towers.pop())
             while self._tower_labels:
                 self.scene.removeItem(self._tower_labels.pop())
+            while self._tower_ranges:
+                self.scene.removeItem(self._tower_ranges.pop())
             
         
         _draw_towers()
-        for it_tower, tower, label in zip(self._towers, self.engine.towers,self._tower_labels):
+        for it_tower, tower, label, rng in zip(self._towers, self.engine.towers,self._tower_labels, self._tower_ranges):
             it_tower.setPos(tower.x, tower.y)
+            R = tower.range
+            rng.setRect(-R, -R, 2 * R, 2 * R)
+            rng.setPos(tower.x, tower.y)
+            rng.setVisible(False)
             label.setPlainText(self._tower_info(tower)) 
             br = label.boundingRect()
             label.setPos(tower.x - br.width() / 2, tower.y + r + 20)
-            label.setZValue(100)   
+            label.setZValue(100)  
+            self._refresh_menu_range_ring() 
 
     def sync_tower_slots(self):
         r = 15
@@ -289,3 +304,11 @@ class GameView(QGraphicsView):
         elif tower.pick_target == tower._pick_target_highest_hp:
             lines.append("T: str")
         return "\n".join(lines)
+    def set_menu_range_tower(self, tower: Tower | None) -> None:
+        self._menu_range_tower = tower
+        self._refresh_menu_range_ring()
+
+    def _refresh_menu_range_ring(self) -> None:
+        ht = self._menu_range_tower
+        for tower, rng in zip(self.engine.towers, self._tower_ranges):
+            rng.setVisible(ht is not None and tower is ht)

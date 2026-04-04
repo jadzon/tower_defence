@@ -82,6 +82,8 @@ class MainWindow(QMainWindow):
             self._timer.start(self._tick_ms)
     # opcjonalnie: self.control_panel.set_paused(self._paused)  # zmiana napisu na przycisku
     def _on_slot_clicked(self, slot: TowerSlot):
+
+        self.game_view.set_menu_range_tower(None)
         menu = QMenu(self)
         if not slot.occupied:
 
@@ -101,6 +103,7 @@ class MainWindow(QMainWindow):
             tower = slot.tower
             if tower is None:
                 return
+            self.game_view.set_menu_range_tower(tower)
             menu = QMenu(self)
             refund = math.trunc(
                 self.engine.tower_costs[tower.tower_type]
@@ -137,17 +140,20 @@ class MainWindow(QMainWindow):
                 menu.addMenu(upgrade_menu)
             chosen = menu.exec(QCursor.pos())
             if chosen is None:
+                self.game_view.set_menu_range_tower(None)
                 return
             data = chosen.data()
             if data == "sell":
                 self.engine.sell_tower(slot)
                 self._on_game_tick()
+                self.game_view.set_menu_range_tower(None)
                 return
             elif isinstance(data, tuple) and len(data) == 2 and data[0] == "target":
                 tower.change_targeting_strategy(data[1])
             elif isinstance(data, UpgradeSpec):
                 self.engine.apply_upgrade(tower, data)
-            
+        
+        self.game_view.set_menu_range_tower(None)
         self._on_game_tick()
 
 
