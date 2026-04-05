@@ -275,6 +275,12 @@ class Node:
     def get_y(self):
         return self.y
     
+    def get_neighbors_dist(self):
+        return {
+            n:math.hypot(self.x-n.x,self.y-n.y)
+            for n in self.neighbors
+            }
+
     def __eq__(self, other):
 
         if self.x == other.x and self.y == other.y:
@@ -284,7 +290,56 @@ class Node:
 
     def __repr__(self):
         return f"Node({self.x}, {self.y})"
+    
+    def __hash__ (self) -> int:
+        return hash((self.x,self.y))
 
+class Brain:
+    def __init__(self,fn: Node, ln: Node):
+        self.first_node = fn
+        self.last_node = ln
+    
+    def pick_next_node(self, cn: Node, av: list[Node]):
+        neighbors = cn.get_neighbors()
+        nv = [n for n in neighbors if n not in av]
+        if len(nv)>0:
+            return random.choice(nv)
+        return None
+
+class AstarBrain(Brain):
+    def __init__(self,fn: Node, ln: Node):
+        super().__init__(fn,ln)
+        self.cur_cost = 0
+        self.node_cost: dict[Node,float] = dict()
+        self.av: list[Node] = []
+
+    def _heur(self,n: Node):
+        return math.hypot(self.last_node.x-n.x,self.last_node.y-n.y)
+
+    def _astar_solve_graph(self, prev_node: Node):
+        if prev_node not in self.av:
+            self.av.append(prev_node)
+        c_node = prev_node
+        if self.node_cost[c_node] is None:
+            if c_node == self.first_node:
+                self.node_cost[c_node] = 0
+        
+        n_dist = c_node.get_neighbors_dist()
+        for n in c_node.get_neighbors():
+            if self.node_cost[n] is None:
+                self.node_cost[n] = math.inf
+            if self.node_cost[n] > n_dist[n] + self.node_cost[c_node]:
+                self.node_cost[n] = n_dist[n] + self.node_cost[c_node]
+
+        n = min(self.node_cost, key=lambda x: self.node_cost[x])
+        if n == self.last_node:
+            return n
+        return self._astar_solve_graph(n)
+
+
+        
+
+        
 
 class Unit:
     
@@ -314,6 +369,7 @@ class Unit:
         self.poison_damage = 1
         self.poison_time = 2.1
         self.poison_last_hi = 0
+        self.brain: Brain = Brain(start_node,goal_node)
 
     def update(self,dt):
 
@@ -340,15 +396,14 @@ class Unit:
         self.y += (dist_y/dist) * step
 
     def _choose_next_node(self) -> Node | None:
-        neighbors = self.current_node.neighbors
-        not_visited = [n for n in neighbors if n not in self.visited_nodes]
-        if len(not_visited)>0:
-            return random.choice(not_visited)
+        n = self.brain.pick_next_node(self.current_node,self.visited_nodes)
+        if n is not None:
+            self.next_node = n
         if self.current_node != self.goal_node:
             self.visited_nodes = [self.current_node]
         else:
             return None
-        return self._choose_next_node()
+        return self.brain.pick_next_node(self.current_node, self.visited_nodes)
     
     def take_damage(self, dmg):
         self.health -= dmg
