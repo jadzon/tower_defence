@@ -67,11 +67,35 @@
           { "x": 800, "y": 800 }
         ]
       },
-      "waves": [
-        { "delay_sec": 0.1, "count": 30, "type": "grunt", "interval_sec": 0.05 },
-        { "delay_sec": 1, "count": 20, "type": "tank", "interval_sec": 0.1 },
-        { "delay_sec": 6, "count": 100, "type": "fast", "interval_sec": 0.1 }
-      ]
+      "rounds": [
+  {
+    "delay_sec": 0.5,
+    "waves": [
+      {
+        "interval_sec": 0.08,
+        "delay_sec": 0,
+        "spawns": [
+          { "type": "grunt", "count": 10 },
+          { "type": "tank", "count": 2 }
+        ]
+      },
+      {
+        "interval_sec": 0.08,
+        "delay_sec": 4,
+        "spawns": [
+          { "type": "fast", "count": 15 }
+        ]
+      }
+    ]
+  },
+  {
+    "interval_sec": 0.08,
+    "delay_sec": 10,
+    "waves": [
+      { "delay_sec": 0, "spawns": [{ "type": "grunt", "count": 20 }] }
+    ]
+  }
+]
     }
   ]
 }

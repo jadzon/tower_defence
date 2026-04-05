@@ -13,13 +13,21 @@ class EconomySpec:
     bullet_costs: dict[str,int]
     kill_reward: dict[str,int]
 
+@dataclass
+class SpawnSpec:
+    unit_type: str
+    count: int
 
 @dataclass
 class WaveSpec:
     delay_sec: float
-    count: int
-    unit_type: str
     interval_sec: float
+    spawns: list[SpawnSpec]
+
+@dataclass
+class RoundSpec:
+    delay_sec: float
+    waves: list[WaveSpec]
 
 
 @dataclass
@@ -30,31 +38,61 @@ class MapSpec:
     goal_node_index: int
     tower_slots: list[tuple[int,int]]
 
+@dataclass
+class ScheduledWave:
+    spawn_at_sec: float
+    interval_sec: float
+    spawns: list[SpawnSpec]
 
 @dataclass
 class LevelSpec:
     id: int
     name: str
     map: MapSpec
-    waves: list[WaveSpec]
-
+    rounds: list[RoundSpec]
+    wave_schedule: list[ScheduledWave]
 
 @dataclass
 class GameConfig:
     levels: list[LevelSpec]
     economy: EconomySpec
 
-
-def _parse_waves(raw: list[dict]) -> list[WaveSpec]:
+def _parse_spawns(raw: list[dict]) -> list[SpawnSpec]:
     return [
-        WaveSpec(
-            delay_sec=w["delay_sec"],
-            count=w["count"],
-            unit_type=w["type"],
-            interval_sec=w["interval_sec"],
+        SpawnSpec(
+            unit_type = s["type"],
+            count = s["count"],
         )
-        for w in raw
+        for s in raw
     ]
+
+def _parse_wave(raw: dict) -> WaveSpec:
+    return WaveSpec(
+        delay_sec=raw["delay_sec"],
+        spawns=_parse_spawns(raw["spawns"]),
+        interval_sec=float(raw.get("interval_sec", 0.1)),
+    )
+def _parse_round(raw: dict) -> RoundSpec:
+    return RoundSpec(
+        delay_sec=raw["delay_sec"],
+        waves=[_parse_wave(w) for w in raw["waves"]],
+    )
+
+def _flatten_wave_schedule(rounds: list[RoundSpec]) -> list[ScheduledWave]:
+    t = 0.0
+    out: list[ScheduledWave] = []
+    for r in rounds:
+        t += r.delay_sec
+        for w in r.waves:
+            t += w.delay_sec
+            out.append(
+                ScheduledWave(
+                    spawn_at_sec=t,
+                    spawns=w.spawns,
+                    interval_sec=w.interval_sec,
+                )
+            )
+    return out
 
 
 def _parse_map(raw: dict) -> MapSpec:
@@ -71,12 +109,14 @@ def _parse_map(raw: dict) -> MapSpec:
 
 
 def _parse_level(raw: dict) -> LevelSpec:
+    rounds = [_parse_round(r) for r in raw["rounds"]]
     return LevelSpec(
         id=raw["id"],
         name=raw["name"],
         map=_parse_map(raw["map"]),
-        waves=_parse_waves(raw["waves"]),
-    )
+        rounds=rounds,
+        wave_schedule=_flatten_wave_schedule(rounds),
+)
 
 def _parse_economy(raw: dict) ->EconomySpec:
     return EconomySpec(

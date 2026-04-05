@@ -24,11 +24,9 @@ class Game:
         self.first_node = self.nodes[cfg.levels[0].map.spawn_node_index]
         self.last_node = self.nodes[cfg.levels[0].map.goal_node_index]
 
-        self.waves = cfg.levels[0].waves
         self.elapsed = 0
         self.wave_index = 0
-        self.spawned_in_wave = 0
-        self.next_spawn_at = 0
+        self.wave_schedule = cfg.levels[0].wave_schedule
         
         self.units: list[Unit] = []
         self.dt = 1
@@ -42,6 +40,9 @@ class Game:
         self.bullet_costs: dict[str,int] = cfg.economy.bullet_costs
         self.tower_sell_return_ratio: float = cfg.economy.sell_return_ratio
         self._gold_timer = 0
+        self._next_spawn_elapsed: float | None = None
+        self._spawn_entry_i = 0
+        self._spawn_entry_k = 0
         self.stat_upgrade_costs: dict[str, int] = {
             "damage": 100,
             "range": 100,
@@ -65,7 +66,7 @@ class Game:
     def tick(self,dt):
 
         self.elapsed += dt
-        self._process_waves()
+        self._process_waves(dt)
         
         for t in self.towers:
             bullet = t.update(dt, self.units)
@@ -90,31 +91,37 @@ class Game:
         unit = create_unit(spawn_node, goal_node, unit_type)
         self.units.append(unit)
     
-    def _process_waves(self):
-        waves = self.waves 
-        if self.wave_index >= len(waves):
-            return
+    def _process_waves(self, dt) -> None:
+        sched = self.wave_schedule
+        while self.wave_index < len(sched):
+            sw = sched[self.wave_index]
+            if self.elapsed < sw.spawn_at_sec:
+                return
+            if self._next_spawn_elapsed is None:
+                self._next_spawn_elapsed = sw.spawn_at_sec
+                self._spawn_entry_i = 0
+                self._spawn_entry_k = 0
 
-        w = waves[self.wave_index]
+            interval = sw.interval_sec
+            while self._spawn_entry_i < len(sw.spawns):
+                sp = sw.spawns[self._spawn_entry_i]
+                while (
+                    self._spawn_entry_k < sp.count
+                    and self.elapsed >= self._next_spawn_elapsed
+                ):
+                    self._add_unit(
+                        self.first_node, self.last_node, sp.unit_type
+                    )
+                    self._spawn_entry_k += 1
+                    self._next_spawn_elapsed += interval
+                if self._spawn_entry_k >= sp.count:
+                    self._spawn_entry_i += 1
+                    self._spawn_entry_k = 0
+                    continue
+                return
 
-        if self.elapsed < w.delay_sec:
-            return
-
-        if self.next_spawn_at is None:
-            self.next_spawn_at = w.delay_sec
-
-        while (
-            self.spawned_in_wave < w.count
-            and self.elapsed >= self.next_spawn_at
-        ):
-            self._add_unit(self.first_node,self.last_node, w.unit_type)
-            self.spawned_in_wave += 1
-            self.next_spawn_at += w.interval_sec 
-
-        if self.spawned_in_wave >= w.count:
             self.wave_index += 1
-            self.spawned_in_wave = 0
-            self.next_spawn_at = None
+            self._next_spawn_elapsed = None
     
     def _place_tower(self,tower_slot,tower_type):
 
