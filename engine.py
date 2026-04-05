@@ -20,14 +20,15 @@ class Game:
         # get node relations
         for a,b in cfg.levels[0].map.edges:
             self.nodes[a].add_neighbor(self.nodes[b])
-
         self.first_node = self.nodes[cfg.levels[0].map.spawn_node_index]
         self.last_node = self.nodes[cfg.levels[0].map.goal_node_index]
 
         self.elapsed = 0
         self.wave_index = 0
         self.wave_schedule = cfg.levels[0].wave_schedule
-        
+        # astar a_star brain
+        self.astar = AstarBrain(self.first_node,self.last_node)
+        self.astar.recalculate_graph()
         self.units: list[Unit] = []
         self.dt = 1
         self.towers: list[Tower] = []
@@ -89,6 +90,7 @@ class Game:
     
     def _add_unit(self, spawn_node, goal_node, unit_type):
         unit = create_unit(spawn_node, goal_node, unit_type)
+        unit.brain = self.astar
         self.units.append(unit)
     
     def _process_waves(self, dt) -> None:
@@ -312,29 +314,65 @@ class AstarBrain(Brain):
         self.cur_cost = 0
         self.node_cost: dict[Node,float] = dict()
         self.av: list[Node] = []
+        self.ntv: list[Node] = []
+        self.next_node: dict[Node,Node] = {}
 
     def _heur(self,n: Node):
         return math.hypot(self.last_node.x-n.x,self.last_node.y-n.y)
 
-    def _astar_solve_graph(self, prev_node: Node):
-        if prev_node not in self.av:
-            self.av.append(prev_node)
-        c_node = prev_node
-        if self.node_cost[c_node] is None:
-            if c_node == self.first_node:
-                self.node_cost[c_node] = 0
+    def _create_chain(self, cf: dict[Node, Node]):
+        n = self.last_node
+        chain = []
+        while n!= self.first_node:
+            chain.append(n)
+            n = cf[n]
+        chain.append(self.first_node)
+        chain.reverse()
+        return {chain[i]: chain[i + 1] for i in range(len(chain) - 1)}
+    def _astar_solve_graph(self, c_node: Node, p_nodes: dict[Node, Node]):
+            
+        if c_node not in self.av:
+            self.av.append(c_node)
+
+        #1. add starting cost (0)
+        if c_node == self.first_node:
+            self.node_cost[c_node] = 0
         
         n_dist = c_node.get_neighbors_dist()
         for n in c_node.get_neighbors():
-            if self.node_cost[n] is None:
+            if n not in self.node_cost:
                 self.node_cost[n] = math.inf
             if self.node_cost[n] > n_dist[n] + self.node_cost[c_node]:
                 self.node_cost[n] = n_dist[n] + self.node_cost[c_node]
-
-        n = min(self.node_cost, key=lambda x: self.node_cost[x])
-        if n == self.last_node:
-            return n
-        return self._astar_solve_graph(n)
+                p_nodes[n] = c_node
+        new_nodes = []
+        if self.ntv:
+            new_nodes = [n for n in self.node_cost if n not in self.ntv and n not in self.av]
+        else:    
+            new_nodes = [n for n in self.node_cost if n not in self.av]
+        self.ntv.extend(new_nodes)
+        ln = min(
+            self.ntv,
+            key=lambda x: (
+            self.node_cost[x] + self._heur(x), 
+            self._heur(x),
+            ),
+        )
+        if ln is not None:
+            self.ntv.remove(ln)
+            if ln == self.last_node:
+                return p_nodes
+        return self._astar_solve_graph(ln, p_nodes)
+    
+    def recalculate_graph(self):
+        cf = self._astar_solve_graph(self.first_node,{})
+        chain = self._create_chain(cf)
+        self.next_node = chain
+    
+    def pick_next_node(self, cn: Node, av: list[Node]):
+        if cn == self.last_node:
+            return None
+        return self.next_node[cn]
 
 
         

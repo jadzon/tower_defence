@@ -64,7 +64,7 @@ class MainWindow(QMainWindow):
         self.control_panel = ControlPanel()
         self.setCentralWidget(GameContainer(self.game_view, self.control_panel))
         self._paused = False
-        # game settings
+        
         self._tick_ms = 16 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._on_game_tick)
