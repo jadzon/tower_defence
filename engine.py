@@ -2,7 +2,7 @@ from __future__ import annotations
 import math
 import random
 
-from config import load_game_config
+from config import LevelSpec, load_game_config
 
 class Game:
     def __init__(self):
@@ -23,17 +23,41 @@ class Game:
         self.first_node = self.nodes[cfg.levels[0].map.spawn_node_index]
         self.last_node = self.nodes[cfg.levels[0].map.goal_node_index]
 
-        self.elapsed = 0
+
+        #game level round wave management
+        self.levels = cfg.levels
+
+        self.level_index = 0
+        self.round_index = 0
         self.wave_index = 0
-        self.wave_schedule = cfg.levels[0].wave_schedule
+
+        self.spawn_index = 0
+        self.spawn_count = 0
+
+        self._round_started = False
+        self._round_ready_at = 0.0
+        self._wave_started = False
+        self._wave_ready_at = 0.0
+        self._next_spawn_elapsed = 0.0
+
+
+        self.elapsed = 0
+        def _load_lvl(self, lvl: LevelSpec):
+            self.rounds = lvl.rounds
+
+
         # astar a_star brain
         self.astar = AstarBrain(self.first_node,self.last_node)
         self.astar.recalculate_graph()
+
+
         self.units: list[Unit] = []
         self.dt = 1
         self.towers: list[Tower] = []
         self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
         self.bullets: list[Bullet] = []
+
+        #economy settings
         self.gold = cfg.economy.starting_gold
         self.gold_generation_per_sec = cfg.economy.gold_generation
         self.kill_reward: dict[str,int] = cfg.economy.kill_reward
@@ -41,9 +65,6 @@ class Game:
         self.bullet_costs: dict[str,int] = cfg.economy.bullet_costs
         self.tower_sell_return_ratio: float = cfg.economy.sell_return_ratio
         self._gold_timer = 0
-        self._next_spawn_elapsed: float | None = None
-        self._spawn_entry_i = 0
-        self._spawn_entry_k = 0
         self.stat_upgrade_costs: dict[str, int] = {
             "damage": 100,
             "range": 100,
@@ -67,7 +88,7 @@ class Game:
     def tick(self,dt):
 
         self.elapsed += dt
-        self._process_waves(dt)
+        self._process_levels(dt)
         
         for t in self.towers:
             bullet = t.update(dt, self.units)
@@ -93,37 +114,82 @@ class Game:
         unit.brain = self.astar
         self.units.append(unit)
     
-    def _process_waves(self, dt) -> None:
-        sched = self.wave_schedule
-        while self.wave_index < len(sched):
-            sw = sched[self.wave_index]
-            if self.elapsed < sw.spawn_at_sec:
-                return
-            if self._next_spawn_elapsed is None:
-                self._next_spawn_elapsed = sw.spawn_at_sec
-                self._spawn_entry_i = 0
-                self._spawn_entry_k = 0
 
-            interval = sw.interval_sec
-            while self._spawn_entry_i < len(sw.spawns):
-                sp = sw.spawns[self._spawn_entry_i]
-                while (
-                    self._spawn_entry_k < sp.count
-                    and self.elapsed >= self._next_spawn_elapsed
-                ):
-                    self._add_unit(
-                        self.first_node, self.last_node, sp.unit_type
-                    )
-                    self._spawn_entry_k += 1
-                    self._next_spawn_elapsed += interval
-                if self._spawn_entry_k >= sp.count:
-                    self._spawn_entry_i += 1
-                    self._spawn_entry_k = 0
-                    continue
-                return
+    def _process_levels(self, dt) -> None:
+        if self.level_index >= len(self.levels):
+            return  # koniec gry
 
+        lvl = self.levels[self.level_index]
+
+        # runda skończona -> kolejna
+        if self.round_index >= len(lvl.rounds):
+            self.level_index += 1
+            self.round_index = 0
+            self.wave_index = 0
+            self.spawn_index = 0
+            self.spawn_count = 0
+            self._round_started = False
+            self._wave_started = False
+
+            ##TODO: nodes reload
+            return
+
+        self._process_rounds(dt, lvl)
+
+
+    def _process_rounds(self, dt, lvl) -> None:
+        rnd = lvl.rounds[self.round_index]
+
+        if not self._round_started:
+            self._round_ready_at = self.elapsed + rnd.delay_sec
+            self._round_started = True
+            return
+
+        if self.elapsed < self._round_ready_at:
+            return
+
+        if self.wave_index >= len(rnd.waves):
+            self.round_index += 1
+            self.wave_index = 0
+            self.spawn_index = 0
+            self.spawn_count = 0
+            self._round_started = False
+            self._wave_started = False
+            return
+
+        self._process_waves(dt, rnd)
+
+
+    def _process_waves(self, dt, rnd) -> None:
+        wave = rnd.waves[self.wave_index]
+
+        if not self._wave_started:
+            self._wave_ready_at = self.elapsed + wave.delay_sec
+            self._next_spawn_elapsed = self._wave_ready_at
+            self.spawn_index = 0
+            self.spawn_count = 0
+            self._wave_started = True
+            return
+
+        if self.elapsed < self._wave_ready_at:
+            return
+
+        while (
+            self.spawn_index < len(wave.spawns) and self.elapsed >= self._next_spawn_elapsed
+        ):
+            sp = wave.spawns[self.spawn_index]
+
+            self._add_unit(self.first_node, self.last_node, sp.unit_type)
+            self.spawn_count += 1
+            self._next_spawn_elapsed += wave.interval_sec
+
+            if self.spawn_count >= sp.count:
+                self.spawn_index += 1
+                self.spawn_count = 0
+
+        if self.spawn_index >= len(wave.spawns):
             self.wave_index += 1
-            self._next_spawn_elapsed = None
+            self._wave_started = False
     
     def _place_tower(self,tower_slot,tower_type):
 

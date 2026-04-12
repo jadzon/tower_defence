@@ -39,18 +39,11 @@ class MapSpec:
     tower_slots: list[tuple[int,int]]
 
 @dataclass
-class ScheduledWave:
-    spawn_at_sec: float
-    interval_sec: float
-    spawns: list[SpawnSpec]
-
-@dataclass
 class LevelSpec:
     id: int
     name: str
     map: MapSpec
     rounds: list[RoundSpec]
-    wave_schedule: list[ScheduledWave]
 
 @dataclass
 class GameConfig:
@@ -78,23 +71,6 @@ def _parse_round(raw: dict) -> RoundSpec:
         waves=[_parse_wave(w) for w in raw["waves"]],
     )
 
-def _flatten_wave_schedule(rounds: list[RoundSpec]) -> list[ScheduledWave]:
-    t = 0.0
-    out: list[ScheduledWave] = []
-    for r in rounds:
-        t += r.delay_sec
-        for w in r.waves:
-            t += w.delay_sec
-            out.append(
-                ScheduledWave(
-                    spawn_at_sec=t,
-                    spawns=w.spawns,
-                    interval_sec=w.interval_sec,
-                )
-            )
-    return out
-
-
 def _parse_map(raw: dict) -> MapSpec:
     nodes = [(n["x"], n["y"]) for n in raw["nodes"]]
     edges = [(e[0], e[1]) for e in raw["edges"]]
@@ -115,7 +91,6 @@ def _parse_level(raw: dict) -> LevelSpec:
         name=raw["name"],
         map=_parse_map(raw["map"]),
         rounds=rounds,
-        wave_schedule=_flatten_wave_schedule(rounds),
 )
 
 def _parse_economy(raw: dict) ->EconomySpec:
