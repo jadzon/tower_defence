@@ -35,7 +35,6 @@ class Game:
 
         # astar a_star brain
         self.astar = AstarBrain(self.first_node,self.last_node)
-        self.astar.recalculate_graph()
 
 
         self.units: list[Unit] = []
@@ -68,6 +67,8 @@ class Game:
         self._place_tower(self.tower_slots[0],"beam")
         self._place_tower(self.tower_slots[1],"vine")
         self._place_tower(self.tower_slots[2],"rocketeer")
+        self.astar.set_towers(self.towers)
+        self.astar.recalculate_graph()
 
     def load_map(self,cfg,lvl_idx: int) -> None:
         self.nodes: list[Node] =  []
@@ -217,6 +218,8 @@ class Game:
             tower = BeamTower(tower_slot.x,tower_slot.y,self.last_node)
             tower_slot.add_tower(tower)
             self.towers.append(tower)
+        self.astar.set_towers(self.towers)
+        self.astar.recalculate_graph()
     
     def buy_tower(self,tower_slot,tower_type):
         if tower_slot.occupied:
@@ -240,7 +243,8 @@ class Game:
         gold  = math.trunc(gold)
         self.gold += gold
         tower_slot.remove_tower()
-        
+        self.astar.set_towers(self.towers)
+        self.astar.recalculate_graph()
 
     
     def _remove_dead_units(self) -> int:
@@ -375,7 +379,7 @@ class Brain:
     def __init__(self,fn: Node, ln: Node):
         self.first_node = fn
         self.last_node = ln
-        self.towers = list[Tower]
+        self.towers: list[Tower] = []
     
     def pick_next_node(self, cn: Node, av: list[Node]):
         neighbors = cn.get_neighbors()
@@ -408,8 +412,52 @@ class AstarBrain(Brain):
         chain.append(self.first_node)
         chain.reverse()
         return {chain[i]: chain[i + 1] for i in range(len(chain) - 1)}
+    
+
     def _astar_solve_graph(self, c_node: Node, p_nodes: dict[Node, Node]):
-            
+        
+        def _dmg_from_towers(n1,n2):
+            x1, y1 = n1.x, n1.y
+            x2, y2 = n2.x, n2.y
+            dx = x2 - x1
+            dy = y2 - y1
+            seg_len = math.hypot(dx, dy)
+            if seg_len <= 1e-9:
+                return 0.0
+            total = 0.0
+            for tower in self.towers:
+                stats = tower.get_stats()
+                dps = stats["damage"] * stats["fire_rate"]
+                r = float(stats["range"])
+                cx, cy = tower.x, tower.y
+                fx = x1 - cx
+                fy = y1 - cy
+                a = dx * dx + dy * dy
+                b = 2.0 * (fx * dx + fy * dy)
+                c = fx * fx + fy * fy - r * r
+                disc = b * b - 4.0 * a * c
+                if disc < 0.0:
+                    continue
+                sqrt_disc = math.sqrt(disc)
+                t1 = (-b - sqrt_disc) / (2.0 * a)
+                t2 = (-b + sqrt_disc) / (2.0 * a)
+                if t1 > t2:
+                    t1, t2 = t2, t1
+                lo = max(0.0, t1)
+                hi = min(1.0, t2)
+                if hi <= lo:
+                    rr = r * r
+                    d1 = fx * fx + fy * fy
+                    d2 = (fx + dx) ** 2 + (fy + dy) ** 2
+                    if d1 <= rr and d2 <= rr:
+                        inside_len = seg_len
+                    else:
+                        continue
+                else:
+                    inside_len = (hi - lo) * seg_len
+                total += dps * inside_len
+            return total
+
         if c_node not in self.av:
             self.av.append(c_node)
 
@@ -421,8 +469,9 @@ class AstarBrain(Brain):
         for n in c_node.get_neighbors():
             if n not in self.node_cost:
                 self.node_cost[n] = math.inf
-            if self.node_cost[n] > n_dist[n] + self.node_cost[c_node]:
-                self.node_cost[n] = n_dist[n] + self.node_cost[c_node]
+            step_cost = n_dist[n] + 100* _dmg_from_towers(c_node, n)
+            if self.node_cost[n] > step_cost + self.node_cost[c_node]:
+                self.node_cost[n] = step_cost + self.node_cost[c_node]
                 p_nodes[n] = c_node
         new_nodes = []
         if self.ntv:
@@ -444,6 +493,9 @@ class AstarBrain(Brain):
         return self._astar_solve_graph(ln, p_nodes)
     
     def recalculate_graph(self):
+        self.node_cost = {}
+        self.av = []
+        self.ntv = []
         cf = self._astar_solve_graph(self.first_node,{})
         chain = self._create_chain(cf)
         self.next_node = chain
@@ -453,10 +505,6 @@ class AstarBrain(Brain):
             return None
         return self.next_node[cn]
 
-
-        
-
-        
 
 class Unit:
     
