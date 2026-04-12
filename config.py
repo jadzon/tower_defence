@@ -42,6 +42,7 @@ class MapSpec:
 class LevelSpec:
     id: int
     name: str
+    hp: int
     map: MapSpec
     rounds: list[RoundSpec]
 
@@ -89,6 +90,7 @@ def _parse_level(raw: dict) -> LevelSpec:
     return LevelSpec(
         id=raw["id"],
         name=raw["name"],
+        hp=raw["hp"],
         map=_parse_map(raw["map"]),
         rounds=rounds,
 )

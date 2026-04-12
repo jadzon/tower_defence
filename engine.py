@@ -9,25 +9,11 @@ class Game:
 
         cfg = load_game_config()
 
-        self.levels = cfg.levels
-
-        # level 1
-        self.nodes: list[Node] =  []
-        # get nodes
-        for n_x, n_y in cfg.levels[0].map.nodes:
-            self.nodes.append(Node(n_x,n_y))
-        
-        # get node relations
-        for a,b in cfg.levels[0].map.edges:
-            self.nodes[a].add_neighbor(self.nodes[b])
-        self.first_node = self.nodes[cfg.levels[0].map.spawn_node_index]
-        self.last_node = self.nodes[cfg.levels[0].map.goal_node_index]
-
-
         #game level round wave management
         self.levels = cfg.levels
 
         self.level_index = 0
+        self.load_map(cfg,0)
         self.round_index = 0
         self.wave_index = 0
 
@@ -36,12 +22,13 @@ class Game:
 
         self._round_started = False
         self._round_ready_at = 0.0
+
         self._wave_started = False
         self._wave_ready_at = 0.0
         self._next_spawn_elapsed = 0.0
-
-
         self.elapsed = 0
+
+
         def _load_lvl(self, lvl: LevelSpec):
             self.rounds = lvl.rounds
 
@@ -52,6 +39,7 @@ class Game:
 
 
         self.units: list[Unit] = []
+        self.hp = cfg.levels[0].hp
         self.dt = 1
         self.towers: list[Tower] = []
         self.tower_slots: list[TowerSlot] = [TowerSlot(x,y) for x,y in cfg.levels[0].map.tower_slots]
@@ -80,6 +68,19 @@ class Game:
         self._place_tower(self.tower_slots[0],"beam")
         self._place_tower(self.tower_slots[1],"vine")
         self._place_tower(self.tower_slots[2],"rocketeer")
+
+    def load_map(self,cfg,lvl_idx: int) -> None:
+        self.nodes: list[Node] =  []
+        # get nodes
+        for n_x, n_y in cfg.levels[lvl_idx].map.nodes:
+            self.nodes.append(Node(n_x,n_y))
+        
+        # get node relations
+        for a,b in cfg.levels[lvl_idx].map.edges:
+            self.nodes[a].add_neighbor(self.nodes[b])
+        self.first_node = self.nodes[cfg.levels[lvl_idx].map.spawn_node_index]
+        self.last_node = self.nodes[cfg.levels[lvl_idx].map.goal_node_index]
+
     def add_gold(self,dt):
         self._gold_timer += dt
         if self._gold_timer > 1:
@@ -104,9 +105,11 @@ class Game:
             if b_c is not None:
                 self.bullets.extend(b_c)
 
-        self._remove_dead_units()
+        damage = self._remove_dead_units()
+        self.hp -= damage
         self._remove_finished_bullets()
         self.add_gold(dt)
+        
         
     
     def _add_unit(self, spawn_node, goal_node, unit_type):
@@ -121,7 +124,6 @@ class Game:
 
         lvl = self.levels[self.level_index]
 
-        # runda skończona -> kolejna
         if self.round_index >= len(lvl.rounds):
             self.level_index += 1
             self.round_index = 0
@@ -149,6 +151,10 @@ class Game:
             return
 
         if self.wave_index >= len(rnd.waves):
+
+            if self.units:
+                return
+            
             self.round_index += 1
             self.wave_index = 0
             self.spawn_index = 0
@@ -237,7 +243,8 @@ class Game:
         
 
     
-    def _remove_dead_units(self):
+    def _remove_dead_units(self) -> int:
+        damage = 0
         def _check_unit_type(u):
             if isinstance(u,GruntUnit):
                 return "grunt"
@@ -250,10 +257,12 @@ class Game:
             if u.killed:
                 self.gold += self.kill_reward[_check_unit_type(u)]
             elif u.finished:
-                print("penalty")
+                damage+=10
             else:
                 new_units.append(u)
         self.units = new_units
+        return damage
+        
 
         # dead_units = [u for u in self.units if u.killed]
         # self.units = [u for u in self.units if not u.finished]
@@ -366,6 +375,7 @@ class Brain:
     def __init__(self,fn: Node, ln: Node):
         self.first_node = fn
         self.last_node = ln
+        self.towers = list[Tower]
     
     def pick_next_node(self, cn: Node, av: list[Node]):
         neighbors = cn.get_neighbors()
@@ -373,6 +383,9 @@ class Brain:
         if len(nv)>0:
             return random.choice(nv)
         return None
+    
+    def set_towers(self,towers: list[Tower]) -> None:
+        self.towers = towers
 
 class AstarBrain(Brain):
     def __init__(self,fn: Node, ln: Node):

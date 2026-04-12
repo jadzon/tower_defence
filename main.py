@@ -15,11 +15,17 @@ class ControlPanel(QWidget):
         h_lay = QHBoxLayout()
         self._speed_idx = 0
         self._gold = QLabel("Gold")
+        self._hp = QLabel("HP")
+        self._round = QLabel("Round")
+        self._elapsed = QLabel("Elapsed")
         self._pause_btn = QPushButton("||")
         self._speed_btn = QPushButton("x1")
         self._pause_btn.clicked.connect(self.pause_clicked.emit)
         self._speed_btn.clicked.connect(self._cycle_speed)
         v_lay.addWidget(self._gold)
+        v_lay.addWidget(self._hp)
+        v_lay.addWidget(self._round)
+        v_lay.addWidget(self._elapsed)
         h_lay.addWidget(self._pause_btn)
         h_lay.addWidget(self._speed_btn)
         v_lay.addLayout(h_lay)
@@ -34,6 +40,15 @@ class ControlPanel(QWidget):
     
     def set_gold(self, n: int) -> None:
         self._gold.setText(f"Gold: {n}")
+
+    def set_round(self, n:int) -> None:
+        self._round.setText(f"Round: {n}")
+
+    def set_elapsed(self, n:int) -> None:
+        self._elapsed.setText(f"Elapsed: {n:.0f}")
+    
+    def set_hp(self, n:int) -> None:
+        self._hp.setText(f"HP: {n}")
 
 class GameContainer(QWidget):
     def __init__(self,game_view,ui,margin=16):
@@ -88,13 +103,17 @@ class MainWindow(QMainWindow):
             self.game_view.sync_bullets()
             self.game_view.sync_units()
         self.control_panel.set_gold(self.engine.gold)
+        self.control_panel.set_hp(self.engine.hp)
+        self.control_panel.set_round(self.engine.round_index)
+        self.control_panel.set_elapsed(self.engine.elapsed)
+
     def _toggle_pause(self) -> None:
         self._paused = not self._paused
         if self._paused:
             self._timer.stop()
         else:
             self._timer.start(self._tick_ms)
-    # opcjonalnie: self.control_panel.set_paused(self._paused)  # zmiana napisu na przycisku
+
     def _on_slot_clicked(self, slot: TowerSlot):
 
         self.game_view.set_menu_range_tower(None)
