@@ -9,11 +9,11 @@ _SPEED_LEVELS = (1, 2, 5, 10)
 class ControlPanel(QWidget):
     pause_clicked = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self,speed_idx, parent=None):
         super().__init__(parent)
         v_lay = QVBoxLayout(self)
         h_lay = QHBoxLayout()
-        self._speed_idx = 0
+        self._speed_idx = speed_idx
         self._gold = QLabel("Gold")
         self._hp = QLabel("HP")
         self._round = QLabel("Round")
@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
         self.engine: Game = Game()
         self.game_view = GameView(self.engine)
         self.game_view.slot_clicked.connect(self._on_slot_clicked)
-        self.control_panel = ControlPanel()
+        self.control_panel = ControlPanel(self.engine.game_speed)
         self.setCentralWidget(GameContainer(self.game_view, self.control_panel))
         self._paused = False
         

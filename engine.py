@@ -29,6 +29,9 @@ class Game:
         self.elapsed = 0
         self.hp_treshold = 50
 
+        # ------------> GENERAL <-------------------
+        self.game_speed = cfg.general.game_speed
+
         #----------------> autobalance <------------------------
         self.auto_balance = cfg.balance.auto_balance
         self.balance_factor = cfg.balance.balance_factor
@@ -131,6 +134,7 @@ class Game:
         elif self.balance_factor - self.balance_scaling_factor >= self.min_balance:
             self.balance_factor +=self.balance_scaling_factor
         
+        self._reset_player_damage_taken_this_round()
         
     
     def _add_unit(self, spawn_node, goal_node, unit_type) -> Unit:
@@ -165,6 +169,7 @@ class Game:
         rnd = lvl.rounds[self.round_index]
 
         if not self._round_started:
+            self._autobalance()
             self._round_ready_at = self.elapsed + rnd.delay_sec
             self._round_started = True
             return

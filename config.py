@@ -1,4 +1,3 @@
-from curses import raw
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -123,7 +122,7 @@ def _parse_economy(raw: dict) ->EconomySpec:
 
 def _parse_balance(raw: dict) ->BalanceSpec:
     return BalanceSpec(
-        auto_balance=raw["autobalance"],
+        auto_balance=raw["auto_balance"],
         balance_factor=raw["balance_factor"],
         balance_scaling_factor=raw["balance_scaling_factor"],
         min_balance=raw["min_balance"],
@@ -143,7 +142,7 @@ def load_game_config() -> GameConfig:
 
     levels = [_parse_level(lvl) for lvl in data["levels"]]
     economy = _parse_economy(data["global"]["economy"])
-    balance = _parse_balance(data["global"]["user"])
+    balance = _parse_balance(data["global"]["balance"])
     general = _parse_general(data["global"]["general"])
 
     return GameConfig(levels=levels,economy=economy,balance=balance,general=general)

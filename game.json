@@ -1,7 +1,7 @@
 {
   "global":{
     "general":{
-      "game_speed": 1
+      "game_speed": 0
     },
     "balance":{
       "auto_balance":true,
