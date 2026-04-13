@@ -1,6 +1,9 @@
 from __future__ import annotations
 import math
 import random
+from uu import Error
+
+from pkg_resources import non_empty_lines
 
 from config import LevelSpec, load_game_config
 
@@ -229,22 +232,10 @@ class Game:
 
         if tower_slot.occupied:
             return
-        if tower_type == "basic":
-            tower = BasicTower(tower_slot.x,tower_slot.y, self.last_node)
-            tower_slot.add_tower(tower)
-            self.towers.append(tower)
-        elif tower_type == "rocketeer":
-            tower = RocketeerTower(tower_slot.x,tower_slot.y,self.last_node)
-            tower_slot.add_tower(tower)
-            self.towers.append(tower)
-        elif tower_type == "vine":
-            tower = VineTower(tower_slot.x,tower_slot.y,self.last_node)
-            tower_slot.add_tower(tower)
-            self.towers.append(tower)
-        else:
-            tower = BeamTower(tower_slot.x,tower_slot.y,self.last_node)
-            tower_slot.add_tower(tower)
-            self.towers.append(tower)
+        
+        tower = TowerFactory.create(tower_type,tower_slot.x,tower_slot.y,self.last_node)
+        tower_slot.add_tower(tower)
+        self.towers.append(tower)
         self.astar.set_towers(self.towers)
         self.astar.recalculate_graph()
     
@@ -1419,4 +1410,18 @@ class SpreadVineBullet(VineBullet):
         self.x += (dist_x/dist) * step
         self.y += (dist_y/dist) * step
 
-                
+
+class TowerFactory:
+    _towers = {
+        "basic": BasicTower,
+        "rocketeer": RocketeerTower,
+        "vine": VineTower,
+        "beam": BeamTower
+    }
+
+    @classmethod
+    def create(cls, tower_type: str, x: float, y:float, last_node: Node) -> Tower:
+        tower_cls = cls._towers.get(tower_type)
+        if tower_cls is None:
+            raise Error(f"wrong tower: {tower_type}")
+        return tower_cls(x, y, last_node)
