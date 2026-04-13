@@ -107,6 +107,15 @@ class MainWindow(QMainWindow):
     
     def _on_restart(self):
         self.engine._load_game_config()
+        self._paused = True
+        self._timer.stop()
+        self.control_panel.set_gold(self.engine.gold)
+        self.game_view.sync_tower_slots()
+        self.game_view.sync_towers()
+        self.game_view.sync_bullets()
+        self.game_view.sync_units()
+        self.game_view.draw_debug_path()             # jeśli używasz
+        self.game_view.update() 
 
     def _on_game_tick(self):
         dt = self._tick_ms / 1000.0 * self.control_panel.speed_multiplier()

@@ -75,9 +75,9 @@ class Game:
         }
         # self.place_tower(self.tower_slots[0],"basic")
         # self.place_tower(self.tower_slots[1],"rocketeer")
-        self._place_tower(self.tower_slots[0],"beam")
-        self._place_tower(self.tower_slots[1],"vine")
-        self._place_tower(self.tower_slots[2],"rocketeer")
+        # self._place_tower(self.tower_slots[0],"beam")
+        # self._place_tower(self.tower_slots[1],"vine")
+        # self._place_tower(self.tower_slots[2],"rocketeer")
         self.astar.set_towers(self.towers)
         self.astar.recalculate_graph()
 
