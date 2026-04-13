@@ -1,3 +1,4 @@
+from curses import raw
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +26,14 @@ class WaveSpec:
     spawns: list[SpawnSpec]
 
 @dataclass
+class BalanceSpec:
+    auto_balance: bool
+    balance_factor: float
+    balance_scaling_factor: float
+    min_balance: float
+    max_balance: float
+
+@dataclass
 class RoundSpec:
     delay_sec: float
     waves: list[WaveSpec]
@@ -47,9 +56,16 @@ class LevelSpec:
     rounds: list[RoundSpec]
 
 @dataclass
+class GeneralSpec:
+    game_speed: int
+
+@dataclass
 class GameConfig:
     levels: list[LevelSpec]
     economy: EconomySpec
+    balance: BalanceSpec
+    general: GeneralSpec
+
 
 def _parse_spawns(raw: list[dict]) -> list[SpawnSpec]:
     return [
@@ -105,6 +121,20 @@ def _parse_economy(raw: dict) ->EconomySpec:
         kill_reward = raw["kill_reward"]
     )
 
+def _parse_balance(raw: dict) ->BalanceSpec:
+    return BalanceSpec(
+        auto_balance=raw["autobalance"],
+        balance_factor=raw["balance_factor"],
+        balance_scaling_factor=raw["balance_scaling_factor"],
+        min_balance=raw["min_balance"],
+        max_balance=raw["max_balance"]
+    )
+
+def _parse_general(raw: dict) -> GeneralSpec:
+    return GeneralSpec(
+        game_speed=raw["game_speed"]
+    )
+
 
 def load_game_config() -> GameConfig:
     path = _CONFIG_DIR / "game.json"
@@ -113,5 +143,7 @@ def load_game_config() -> GameConfig:
 
     levels = [_parse_level(lvl) for lvl in data["levels"]]
     economy = _parse_economy(data["global"]["economy"])
+    balance = _parse_balance(data["global"]["user"])
+    general = _parse_general(data["global"]["general"])
 
-    return GameConfig(levels=levels,economy=economy)
+    return GameConfig(levels=levels,economy=economy,balance=balance,general=general)

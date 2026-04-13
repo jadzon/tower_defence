@@ -1,5 +1,15 @@
 {
   "global":{
+    "general":{
+      "game_speed": 1
+    },
+    "balance":{
+      "auto_balance":true,
+      "balance_factor": 1.0,
+      "balance_scaling_factor": 0.1,
+      "max_balance": 1.5,
+      "min_balance":0.7
+    },
     "economy":{
       "starting_gold": 5000,
       "gold_generation": 1,

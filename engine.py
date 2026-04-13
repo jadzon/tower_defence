@@ -27,13 +27,17 @@ class Game:
         self._wave_ready_at = 0.0
         self._next_spawn_elapsed = 0.0
         self.elapsed = 0
+        self.hp_treshold = 50
 
+        #----------------> autobalance <------------------------
+        self.auto_balance = cfg.balance.auto_balance
+        self.balance_factor = cfg.balance.balance_factor
+        self.balance_scaling_factor = cfg.balance.balance_scaling_factor
+        self.min_balance = cfg.balance.min_balance
+        self.max_balance = cfg.balance.max_balance
 
-        def _load_lvl(self, lvl: LevelSpec):
-            self.rounds = lvl.rounds
-
-
-        # astar a_star brain
+        self.damage_taken_this_round = 0
+        # astar brain
         self.astar = AstarBrain(self.first_node,self.last_node)
 
 
@@ -108,15 +112,32 @@ class Game:
 
         damage = self._remove_dead_units()
         self.hp -= damage
+        self._add_player_damage_taken_this_round(damage)
         self._remove_finished_bullets()
         self.add_gold(dt)
+    
+    def _add_player_damage_taken_this_round(self,damage: int) -> None:
+        self.damage_taken_this_round +=damage
+
+    def _reset_player_damage_taken_this_round(self) -> None:
+        self.damage_taken_this_round = 0
+
+    def _autobalance(self) -> None:
+        if not self.auto_balance:
+            return
+        
+        if self.damage_taken_this_round > self.hp_treshold and self.balance_factor + self.balance_scaling_factor <= self.max_balance:
+            self.balance_factor -= self.balance_scaling_factor
+        elif self.balance_factor - self.balance_scaling_factor >= self.min_balance:
+            self.balance_factor +=self.balance_scaling_factor
         
         
     
-    def _add_unit(self, spawn_node, goal_node, unit_type):
+    def _add_unit(self, spawn_node, goal_node, unit_type) -> Unit:
         unit = create_unit(spawn_node, goal_node, unit_type)
         unit.brain = self.astar
         self.units.append(unit)
+        return unit
     
 
     def _process_levels(self, dt) -> None:
@@ -186,7 +207,8 @@ class Game:
         ):
             sp = wave.spawns[self.spawn_index]
 
-            self._add_unit(self.first_node, self.last_node, sp.unit_type)
+            unit = self._add_unit(self.first_node, self.last_node, sp.unit_type)
+            unit.health = math.trunc(unit.health * self.balance_factor)
             self.spawn_count += 1
             self._next_spawn_elapsed += wave.interval_sec
 
