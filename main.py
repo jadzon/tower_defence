@@ -5,9 +5,17 @@ from PyQt6.QtGui import QCursor, QAction
 from engine import Game, TowerSlot, UpgradeSpec
 from view import GameView
 import math
+
+
+
 _SPEED_LEVELS = (1, 2, 5, 10)
+
+
+
 class ControlPanel(QWidget):
+
     pause_clicked = pyqtSignal()
+    restart_clicked = pyqtSignal()
 
     def __init__(self,speed_idx, parent=None):
         super().__init__(parent)
@@ -20,12 +28,15 @@ class ControlPanel(QWidget):
         self._elapsed = QLabel("Elapsed")
         self._pause_btn = QPushButton("||")
         self._speed_btn = QPushButton("x1")
+        self._restart_btn = QPushButton("rst")
         self._pause_btn.clicked.connect(self.pause_clicked.emit)
+        self._restart_btn.clicked.connect(self.restart_clicked.emit)
         self._speed_btn.clicked.connect(self._cycle_speed)
         v_lay.addWidget(self._gold)
         v_lay.addWidget(self._hp)
         v_lay.addWidget(self._round)
         v_lay.addWidget(self._elapsed)
+        h_lay.addWidget(self._restart_btn)
         h_lay.addWidget(self._pause_btn)
         h_lay.addWidget(self._speed_btn)
         v_lay.addLayout(h_lay)
@@ -89,11 +100,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("game")
         self.showFullScreen()
         self.control_panel.pause_clicked.connect(self._toggle_pause)
-
+        self.control_panel.restart_clicked.connect(self._on_restart)
         self._on_game_tick()
         self._toggle_pause()
         
     
+    def _on_restart(self):
+        self.engine._load_game_config()
+
     def _on_game_tick(self):
         dt = self._tick_ms / 1000.0 * self.control_panel.speed_multiplier()
         self.engine.tick(dt)

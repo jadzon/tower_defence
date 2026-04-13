@@ -3,16 +3,17 @@ import math
 import random
 from uu import Error
 
-from pkg_resources import non_empty_lines
 
 from config import LevelSpec, load_game_config
 
 class Game:
     def __init__(self):
+        self._load_game_config()
+
+    def _load_game_config(self):
 
         cfg = load_game_config()
-
-        #game level round wave management
+         #game level round wave management
         self.levels = cfg.levels
 
         self.level_index = 0
@@ -79,6 +80,7 @@ class Game:
         self._place_tower(self.tower_slots[2],"rocketeer")
         self.astar.set_towers(self.towers)
         self.astar.recalculate_graph()
+
 
     def load_map(self,cfg,lvl_idx: int) -> None:
         self.nodes: list[Node] =  []
