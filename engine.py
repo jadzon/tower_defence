@@ -151,7 +151,7 @@ class Game:
 
     def _process_levels(self, dt) -> None:
         if self.level_index >= len(self.levels):
-            return  # koniec gry
+            return
 
         lvl = self.levels[self.level_index]
 
@@ -442,13 +442,11 @@ class AstarBrain(Brain):
             dx = x2 - x1
             dy = y2 - y1
             seg_len = math.hypot(dx, dy)
-            if seg_len <= 1e-9:
-                return 0.0
             total = 0.0
             for tower in self.towers:
                 stats = tower.get_stats()
                 dps = stats["damage"] * stats["fire_rate"]
-                r = float(stats["range"])
+                r = stats["range"]
                 cx, cy = tower.x, tower.y
                 fx = x1 - cx
                 fy = y1 - cy

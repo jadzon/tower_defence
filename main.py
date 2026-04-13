@@ -114,7 +114,7 @@ class MainWindow(QMainWindow):
         self.game_view.sync_towers()
         self.game_view.sync_bullets()
         self.game_view.sync_units()
-        self.game_view.draw_debug_path()             # jeśli używasz
+        self.game_view.draw_debug_path()          
         self.game_view.update() 
 
     def _on_game_tick(self):

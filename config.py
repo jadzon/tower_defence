@@ -2,6 +2,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+_ALLOWED_UNIT_TYPES = {"grunt", "fast", "tank"}
+
 _CONFIG_DIR = Path(__file__).resolve().parent
 
 @dataclass
