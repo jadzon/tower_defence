@@ -5,6 +5,9 @@ from PyQt6.QtGui import QCursor, QAction
 from engine import Game, TowerSlot, UpgradeSpec
 from view import GameView
 import math
+import argparse
+from client import Client
+import json
 
 
 
@@ -60,7 +63,6 @@ class ControlPanel(QWidget):
     
     def set_hp(self, n:int) -> None:
         self._hp.setText(f"HP: {n}")
-
 class GameContainer(QWidget):
     def __init__(self,game_view,ui,margin=16):
         super().__init__()
@@ -81,10 +83,13 @@ class GameContainer(QWidget):
         self._ui.move(x, y)
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, engine):
         super().__init__()
-
-        self.engine: Game = Game()
+        _HOST = '127.0.0.1'
+        _PORT = 8080
+        self.engine: Game = engine
+        self.wsclient = Client(_HOST,_PORT)
+        self.wsclient.start()
         self.game_view = GameView(self.engine)
         self.game_view.slot_clicked.connect(self._on_slot_clicked)
         self.control_panel = ControlPanel(self.engine.game_speed)
@@ -117,6 +122,15 @@ class MainWindow(QMainWindow):
         self.game_view.draw_debug_path()          
         self.game_view.update() 
 
+    def _test_send_turret_pos(self):
+        tows = self.engine.towers
+        t_poss = []
+        for t in tows:
+            t_pos = (t.x,t.y)
+            t_poss.append(t_pos)
+        mes = json.dumps(t_poss)
+        self.wsclient.send_message(mes)
+
     def _on_game_tick(self):
         dt = self._tick_ms / 1000.0 * self.control_panel.speed_multiplier()
         self.engine.tick(dt)
@@ -129,6 +143,7 @@ class MainWindow(QMainWindow):
         self.control_panel.set_hp(self.engine.hp)
         self.control_panel.set_round(self.engine.round_index)
         self.control_panel.set_elapsed(self.engine.elapsed)
+        self._test_send_turret_pos()
 
     def _toggle_pause(self) -> None:
         self._paused = not self._paused
@@ -217,5 +232,6 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow()
+    e = Game() 
+    window = MainWindow(e)
     sys.exit(app.exec())
